@@ -118,9 +118,11 @@ tagged_rule(float_50_60_tag, {
 
 -- Games
 tagged_rule(game_tag, {
-    "steam_app_[0-9]+",  -- Steam games
-    "steam_app_default", -- Lutris games
-    "gamescope",         -- Gamescope
+    "steam_app_[0-9]+",   -- Steam games
+    "steam_app_default",  -- Lutris games
+    "gamescope",          -- Gamescope
+    "org\\.vinegarhq\\.Sober", -- Roblox (Sober)
+    "Minecraft",           -- Minecraft
 }, "class")
 
 

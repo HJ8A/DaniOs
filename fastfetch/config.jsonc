@@ -4,7 +4,12 @@
     "display": {
         "separator": "  ",
         "color": "white",
-        "constants": ["\u001b[37m", "\u001b[38;5;16m", "\u001b[38;5;17m", "\u001b[38;5;18m"]
+        "constants": [
+            "\u001b[37m",
+            "\u001b[38;5;16m",
+            "\u001b[38;5;17m",
+            "\u001b[38;5;18m"
+        ]
     },
     "modules": [
         "break",
@@ -14,51 +19,81 @@
         },
         {
             "type": "kernel",
-            "key": "│ {$2}{$1}  kernel",
-            "format": "{$2}{release>22}{$1} │"
+            "key": "│ {$2}{$1}  kernel",
+            "format": "{$2}{release>22}{$1}  │"
         },
         {
             "type": "command",
-            "key": "│   uptime",
+            "key": "│   uptime",
             "text": "uptime -p | cut -d ' ' -f 2-",
-            "format": "{>22} │"
+            "format": "{>22}  │"
         },
         {
             "type": "shell",
-            "key": "│ {$2}{$1}  shell ",
-            "format": "{$2}{pretty-name>22}{$1} │"
+            "key": "│ {$2}{$1}  shell ",
+            "format": "{$2}{pretty-name>22}{$1}  │"
         },
         {
             "type": "command",
-            "key": "│ {$3}{$1}  mem   ",
+            "key": "│ {$3}{$1}  mem   ",
             "text": "free -m | awk 'NR==2{printf \"%.2f GiB / %.2f GiB\",$3/1024,$2/1024}'",
-            "format": "{$3}{>22}{$1} │"
+            "format": "{$3}{>22}{$1}  │"
         },
         {
             "type": "packages",
-            "key": "│   pkgs  ",
-            "format": "{all>22} │"
+            "key": "│   pkgs  ",
+            "format": "{all>22}  │"
         },
         {
             "type": "command",
-            "key": "│ {$2}{$1}  user  ",
+            "key": "│ {$2}{$1}  user  ",
             "text": "echo $USER",
-            "format": "{$2}{>22}{$1} │"
+            "format": "{$2}{>22}{$1}  │"
         },
         {
             "type": "command",
-            "key": "│   hname ",
+            "key": "│   hname ",
             "text": "hostnamectl hostname",
-            "format": "{>22} │"
+            "format": "{>22}  │"
         },
         {
             "type": "os",
-            "key": "│ {$4}󰻀{$1}  distro",
+            "key": "│   distro ",
             "format": "{$4}{pretty-name>22}{$1} │"
+        },
+        {
+            "type": "command",
+            "key": "│ {$2}{$1}  cpu   ",
+            "text": "grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //' | sed 's/Intel(R) Core(TM) //' | sed 's/(R)//g' | sed 's/ @.*//' | tr -s ' '",
+            "format": "{$2}{>22}{$1}  │"
+        },
+        {
+            "type": "command",
+            "key": "│ {$3}{$1}  gpu   ",
+            "text": "cat /proc/driver/nvidia/gpus/*/information 2>/dev/null | grep 'Model:' | head -1 | sed 's/.*Model: *//' | sed 's/NVIDIA GeForce //' | sed 's/ Max-Q.*//' | sed 's/ Mobile//' | sed 's/ Laptop GPU//' | xargs",
+            "format": "{$3}{>22}{$1}  │"
+        },
+        {
+            "type": "command",
+            "key": "│ {$4}{$1}  screen",
+            "text": "hyprctl monitors 2>/dev/null | grep -oP '\\d+x\\d+@\\d+' | head -1 | sed 's/@/ @ /' | sed 's/$/ Hz/'",
+            "format": "{$4}{>22}{$1}  │"
+        },
+        {
+            "type": "command",
+            "key": "│ {$2}{$1}  date  ",
+            "text": "date '+%a %d %b  %H:%M'",
+            "format": "{$2}{>22}{$1}  │"
         },
         {
             "type": "custom",
             "key": "╰───────────────────────────────────╯"
+        },
+        "break",
+        {
+            "type": "colors",
+            "paddingLeft": 3,
+            "symbol": "circle"
         },
         "break"
     ]
