@@ -65,7 +65,7 @@
             "activeIndicator": true,
             "maxWindowIcons": 1,
             "occupiedBg": false,
-            "perMonitorWorkspaces": true,
+            "perMonitor": true,
             "showWindows": true,
             "shown": 5
         }
