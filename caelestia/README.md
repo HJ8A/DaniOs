@@ -17,6 +17,9 @@ audio sink name, keyboard layout, screenshot folder) and needs adjusting to
 your own hardware. Run `hyprctl monitors` and `pactl list short sinks` to
 find your own values.
 
+See [`KEYBINDS.md`](./KEYBINDS.md) for the full list of what changed vs.
+vanilla Caelestia's default keybinds.
+
 ## What's in here
 
 | File | Purpose |

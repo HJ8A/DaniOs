@@ -32,6 +32,7 @@ return {
     kbRecordSound          = "",
     kbRecordRegion         = "",
     kbWindowFullscreen     = "",                                        -- replaced by custom bind in hypr-user.lua (auto-hides bar too)
+    kbScreenshotFreeze     = "",                                        -- was SUPER+SHIFT+S, collided with kbMoveWinToWsSpecial below
 
     -- Move window to special workspace: now only SUPER + SHIFT + S
     kbMoveWinToWsSpecial = "SUPER + SHIFT + S",

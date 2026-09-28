@@ -24,7 +24,9 @@ keybind changes and two extra Quickshell widgets on top.
   so it never goes stale — remap a key and the cheatsheet already shows it
   next time you open it.
 
-See each folder's own README for install instructions. Everything below
+See each folder's own README for install instructions, and
+[`caelestia/KEYBINDS.md`](./caelestia/KEYBINDS.md) for the full list of
+keybind differences vs. vanilla Caelestia. Everything below
 this point is the original upstream README for the base dotfiles.
 
 ---
