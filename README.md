@@ -1,7 +1,33 @@
-# caelestia
+# caelestia (DaniOS)
 
-This is the main repo of the Caelestia dotfiles and contains user configs for
-various apps.
+This is a personal fork of the [Caelestia](https://github.com/caelestia-dots)
+dotfiles, branded **DaniOS**. All credit for the base Hyprland/Quickshell
+setup goes to the upstream Caelestia project — this fork adds personal
+keybind changes and two extra Quickshell widgets on top.
+
+## What DaniOS adds on top of vanilla Caelestia
+
+- **[`caelestia/`](./caelestia)** — personal Hyprland overrides
+  (`hypr-user.lua`, `hypr-vars.lua`) and a `shell.json` example: reworked
+  window-group keybinds (`Super+G`/`Super+Shift+G`/`Super+[`/`Super+]`),
+  disabled browser keybind, custom screenshot/audio/monitor setup, and the
+  `bar.statusIcons` / `general.apps.terminal` config needed to run cleanly
+  on caelestia-shell 2.4.0+.
+- **[`quickshell/wallpaper-picker`](./quickshell/wallpaper-picker)**
+  (`Super+I`) — wallpaper picker, color scheme switcher, bar mode toggle,
+  blur/opacity sliders, **and a GIFs tab** (pick the session-panel GIF and
+  the "now playing" media-widget GIF from your own `~/Pictures/gifs`
+  folder) — plus an "open folder" button on the Wallpaper and GIFs tabs.
+- **[`quickshell/keybinds-viewer`](./quickshell/keybinds-viewer)**
+  (`Super+H`) — a live, searchable cheatsheet of every keybind, grouped by
+  category. Reads your actual `hypr-vars.lua`/`variables.lua` at open time,
+  so it never goes stale — remap a key and the cheatsheet already shows it
+  next time you open it.
+
+See each folder's own README for install instructions. Everything below
+this point is the original upstream README for the base dotfiles.
+
+---
 
 > [!IMPORTANT]
 > The legacy `install.fish` script in this repo has been removed in favour

@@ -1,0 +1,108 @@
+{
+    "appearance": {
+        "anim": {
+            "durations": {
+                "scale": 0.99
+            }
+        },
+        "padding": {
+            "scale": 1.02
+        },
+        "rounding": {
+            "scale": 1.22
+        },
+        "spacing": {
+            "scale": 0.44
+        },
+        "transparency": {
+            "base": 0.88,
+            "enabled": false,
+            "layers": 0.69
+        }
+    },
+    "background": {
+        "desktopClock": {
+            "enabled": true,
+            "invertColors": false,
+            "position": "bottom-right",
+            "shadow": {
+                "enabled": true
+            }
+        },
+        "visualiser": {
+            "enabled": false
+        }
+    },
+    "bar": {
+        "activeWindow": {
+            "compact": false
+        },
+        "clock": {
+            "background": false,
+            "showDate": true,
+            "showIcon": false
+        },
+        "persistent": true,
+        "popouts": {
+            "activeWindow": true,
+            "statusIcons": true,
+            "tray": true
+        },
+        "scrollActions": {
+            "volume": true,
+            "workspaces": true
+        },
+        "statusIcons": [
+            { "id": "lockStatus", "enabled": false },
+            { "id": "audio", "enabled": false },
+            { "id": "microphone", "enabled": false },
+            { "id": "kbLayout", "enabled": true },
+            { "id": "network", "enabled": true },
+            { "id": "bluetooth", "enabled": false },
+            { "id": "battery", "enabled": true }
+        ],
+        "workspaces": {
+            "activeIndicator": true,
+            "maxWindowIcons": 1,
+            "occupiedBg": false,
+            "perMonitorWorkspaces": true,
+            "showWindows": true,
+            "shown": 5
+        }
+    },
+    "border": {
+        "rounding": 18,
+        "thickness": 7
+    },
+    "general": {
+        "apps": {
+            "terminal": ["kitty"]
+        },
+        "idle": {
+            "timeouts": [
+                { "idleAction": "lock", "timeout": 600 },
+                { "idleAction": "dpms off", "returnAction": "dpms on", "timeout": 900 },
+                { "idleAction": ["systemctl", "suspend-then-hibernate"], "timeout": 1500 }
+            ]
+        }
+    },
+    "launcher": {
+        "favouriteApps": ["brave"]
+    },
+    "paths": {
+        "wallpaperDir": "~/Pictures/wallpapers"
+    },
+    "session": {
+        "commands": {
+            "logout": ["loginctl", "terminate-session", "self"]
+        }
+    },
+    "utilities": {
+        "toasts": {
+            "capsLockChanged": false,
+            "fullscreen": "important",
+            "kbLayoutChanged": true,
+            "nowPlaying": false
+        }
+    }
+}
