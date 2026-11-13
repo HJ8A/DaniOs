@@ -5,6 +5,8 @@ import Quickshell.Wayland
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Shapes
+import QtQuick.Effects
 
 ShellRoot {
     id: root
@@ -79,6 +81,9 @@ ShellRoot {
         { name: "onedark",    desc: "Based on Atom One Dark — balanced and widely loved by developers." },
         { name: "rosepine",   desc: "Soft rose and pine tones, elegant and romantic aesthetic." },
         { name: "tokyonight", desc: "Urban Japanese night vibes — deep blues and soft purples." },
+        { name: "darkgreen",  desc: "Dark, muted greens — calm and low contrast." },
+        { name: "shadotheme", desc: "Dark theme with soft, desaturated accents." },
+        { name: "solarized",  desc: "Ethan Schoonover's classic precision palette — teal base, warm accents." },
     ]
 
     // ── Bar mode definitions ──────────────────────────────────────────────────
@@ -141,7 +146,10 @@ ShellRoot {
                     if (walls[j].path === root.current) { idx = j; break }
                 }
                 if (idx >= 0)
-                    Qt.callLater(() => carousel.positionViewAtIndex(idx, ListView.Center))
+                    Qt.callLater(() => {
+                        wallCarousel.currentIndex = idx
+                        wallCarousel.positionViewAtIndex(idx, PathView.Center)
+                    })
 
             } catch(e) { console.log("wallpaper-picker parse error:", e) }
         }
@@ -177,12 +185,98 @@ ShellRoot {
     // ── Processes ─────────────────────────────────────────────────────────────
     Process {
         id: applyWall
-        onExited: Qt.quit()
+        onExited: root.finish()
     }
 
     Process {
         id: applyScheme
-        onExited: root.applyingScheme = false
+        onExited: (code) => root.schemeApplied(code)
+    }
+
+    // ── Scheme palettes (from `caelestia scheme list`) ────────────────────────
+    property var    schemePalettes:       ({})   // name -> { flavour -> colours }
+    property var    schemeOrder:          []
+    property string currentSchemeName:    ""
+    property string currentSchemeFlavour: ""
+    property var    flavourChoice:        ({})   // name -> flavour picked in the UI
+    property var    pendingScheme:        null
+
+    Process {
+        id: schemeListProc
+        command: ["caelestia", "scheme", "list"]
+        running: true
+        property string _buf: ""
+        stdout: SplitParser { onRead: data => schemeListProc._buf += data }
+        onExited: {
+            try {
+                var d = JSON.parse(schemeListProc._buf.trim())
+                root.schemePalettes = d
+                var names = Object.keys(d).filter(n => n !== "dynamic")
+                root.schemeOrder = (d.dynamic ? ["dynamic"] : []).concat(names)
+            } catch (e) { console.log("scheme list parse error:", e) }
+        }
+    }
+
+    Process {
+        id: schemeStateProc
+        command: ["cat", Quickshell.env("HOME") + "/.local/state/caelestia/scheme.json"]
+        running: true
+        property string _buf: ""
+        stdout: SplitParser { onRead: data => schemeStateProc._buf += data }
+        onExited: {
+            try {
+                var d = JSON.parse(schemeStateProc._buf.trim())
+                root.currentSchemeName    = d.name    || ""
+                root.currentSchemeFlavour = d.flavour || ""
+            } catch (e) {}
+        }
+    }
+
+    // Flavour shown/applied when the user hasn't picked one: the active one for
+    // the current scheme, otherwise a sensible dark default.
+    function defaultFlavour(name) {
+        var fl = Object.keys(root.schemePalettes[name] || {})
+        if (name === root.currentSchemeName && fl.indexOf(root.currentSchemeFlavour) >= 0)
+            return root.currentSchemeFlavour
+        var pref = ["medium", "default", "main", "mocha"]
+        for (var i = 0; i < pref.length; i++)
+            if (fl.indexOf(pref[i]) >= 0) return pref[i]
+        return fl[0] || ""
+    }
+
+    function setFlavour(name, flavour) {
+        var c = Object.assign({}, root.flavourChoice)
+        c[name] = flavour
+        root.flavourChoice = c
+    }
+
+    function applySchemeChoice(name, flavour) {
+        if (root.applyingScheme) return
+        root.applyingScheme = true
+        root.pendingScheme = { name: name, flavour: flavour }
+        applyScheme.command = ["caelestia", "scheme", "set", "-n", name, "-f", flavour]
+        applyScheme.running = true
+    }
+
+    function setColorsFrom(cl) {
+        if (cl.background)           root.clBg          = root.c(cl.background)
+        if (cl.surfaceContainerHigh) root.clSurfaceHigh = root.c(cl.surfaceContainerHigh)
+        if (cl.surfaceContainer)     root.clSurface     = root.c(cl.surfaceContainer)
+        if (cl.primary)              root.clPrimary     = root.c(cl.primary)
+        if (cl.onSurface)            root.clOnSurface   = root.c(cl.onSurface)
+        if (cl.onSurfaceVariant)     root.clOnSurfaceV  = root.c(cl.onSurfaceVariant)
+        if (cl.outlineVariant)       root.clOutline     = root.c(cl.outlineVariant)
+    }
+
+    // After applying: mark it current and recolour the picker itself live
+    function schemeApplied(code) {
+        root.applyingScheme = false
+        if (code !== 0 || !root.pendingScheme) return
+        var p = root.pendingScheme
+        root.currentSchemeName    = p.name
+        root.currentSchemeFlavour = p.flavour
+        root.setColorsFrom(((root.schemePalettes[p.name] || {})[p.flavour]) || {})
+        root.pendingScheme = null
     }
 
     Process {
@@ -217,6 +311,18 @@ ShellRoot {
                 var gifs = d.gifs || []
                 for (var i = 0; i < gifs.length; i++)
                     gifModel.append(gifs[i])
+
+                var cur = root.gifSlot === "session" ? root.currentSessionGif : root.currentMediaGif
+                for (var j = 0; j < gifs.length; j++) {
+                    if (gifs[j].path === cur) {
+                        var gi = j
+                        Qt.callLater(() => {
+                            gifCarousel.currentIndex = gi
+                            gifCarousel.positionViewAtIndex(gi, PathView.Center)
+                        })
+                        break
+                    }
+                }
             } catch (e) {}
         }
     }
@@ -229,7 +335,7 @@ ShellRoot {
     Process {
         id: shellRestart
         command: ["/bin/bash", "-c", "caelestia shell -k && sleep 1 && caelestia shell -d"]
-        onExited: Qt.quit()
+        onExited: root.finish()
     }
 
     // Effects processes
@@ -255,6 +361,291 @@ ShellRoot {
         onExited: root.windowNoblur = !root.windowNoblur
     }
 
+
+    // ── Carousel apply flow ───────────────────────────────────────────────────
+    property bool   carouselApplying: false
+    property double applyStartedAt:   0
+
+    function applyWallpaper(path) {
+        if (root.carouselApplying) return
+        root.carouselApplying = true
+        root.applyStartedAt = Date.now()
+        root.current = path
+        applyWall.command = ["caelestia", "wallpaper", "-f", path]
+        applyWall.running = true
+    }
+
+    function applyGif(path) {
+        if (root.carouselApplying) return
+        root.carouselApplying = true
+        root.applyStartedAt = Date.now()
+        if (root.gifSlot === "session") root.currentSessionGif = path
+        else                            root.currentMediaGif   = path
+        setGifProc.command = [
+            "python3",
+            Qt.resolvedUrl("set_gif.py").toString().replace("file://", ""),
+            root.gifSlot,
+            path
+        ]
+        setGifProc.running = true
+    }
+
+    // Let the apply animation play for at least ~0.9s, then fade out and quit
+    function finish() {
+        closeTimer.interval = Math.max(1, 900 - (Date.now() - root.applyStartedAt))
+        closeTimer.start()
+    }
+    Timer { id: closeTimer; onTriggered: stageOut.start() }
+
+    function handleKey(event) {
+        if (event.key === Qt.Key_Escape) {
+            if (!root.carouselApplying) Qt.quit()
+            event.accepted = true
+            return
+        }
+        if (root.carouselApplying) { event.accepted = true; return }
+
+        var pv = root.currentTab === 0 ? wallCarousel
+               : root.currentTab === 4 ? gifCarousel : null
+        if (!pv) return
+
+        switch (event.key) {
+        case Qt.Key_Left:
+            pv.decrementCurrentIndex(); event.accepted = true; break
+        case Qt.Key_Right:
+            pv.incrementCurrentIndex(); event.accepted = true; break
+        case Qt.Key_Return:
+        case Qt.Key_Enter:
+            pv.activateCurrent(); event.accepted = true; break
+        case Qt.Key_Up:
+        case Qt.Key_Down:
+            if (root.currentTab === 4) {
+                root.gifSlot = root.gifSlot === "session" ? "media" : "session"
+                event.accepted = true
+            }
+            break
+        }
+    }
+
+    // ── Infinite carousel with skewed (parallelogram) tiles ──────────────────
+    // Used by the Wallpaper and GIFs tabs. Inline components can't see ids of
+    // the outer file, so colours/state come in as properties.
+    component SkewCarousel: PathView {
+        id: pv
+
+        property bool   animated:   false   // true → AnimatedImage (GIFs)
+        property bool   applying:   false
+        property string activePath: ""      // item currently in use (✓ badge)
+        property color  accent:     "#c2c1ff"
+        property color  surface:    "#2a292e"
+        property color  badgeText:   "#131317"
+        signal activated(string path)
+
+        // Tile geometry: taller than wide, top edge shifted right (/ /)
+        readonly property real tileH: Math.min(height * 0.9, 560)
+        readonly property real tileW: tileH * 0.62
+        readonly property real skew:  tileW * 0.24
+        readonly property real step:  tileW * 0.86
+        readonly property real span:  step * pathItemCount
+        readonly property real near:  Math.min(step, span / 2 - 1)
+
+        function activateCurrent() { if (currentItem) activated(currentItem.path) }
+
+        pathItemCount:           Math.max(1, Math.min(count, 9))
+        preferredHighlightBegin: 0.5
+        preferredHighlightEnd:   0.5
+        highlightRangeMode:      PathView.StrictlyEnforceRange
+        snapMode:                PathView.SnapOneItem
+        highlightMoveDuration:   320
+        interactive:             !applying
+        cacheItemCount:          4
+
+        // Mouse wheel / touchpad: one step per notch (accumulated for touchpads)
+        property real _wheelAcc: 0
+        WheelHandler {
+            enabled: !pv.applying
+            onWheel: (event) => {
+                pv._wheelAcc += event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x
+                while (pv._wheelAcc <= -120) { pv.incrementCurrentIndex(); pv._wheelAcc += 120 }
+                while (pv._wheelAcc >=  120) { pv.decrementCurrentIndex(); pv._wheelAcc -= 120 }
+            }
+        }
+
+        path: Path {
+            startX: pv.width / 2 - pv.span / 2; startY: pv.height / 2
+            PathAttribute { name: "itemScale";   value: 0.55 }
+            PathAttribute { name: "itemOpacity"; value: 0.10 }
+            PathAttribute { name: "itemZ";       value: 0 }
+            PathLine { x: pv.width / 2 - pv.near; y: pv.height / 2 }
+            PathAttribute { name: "itemScale";   value: 0.80 }
+            PathAttribute { name: "itemOpacity"; value: 0.80 }
+            PathAttribute { name: "itemZ";       value: 5 }
+            PathLine { x: pv.width / 2; y: pv.height / 2 }
+            PathAttribute { name: "itemScale";   value: 1.0 }
+            PathAttribute { name: "itemOpacity"; value: 1.0 }
+            PathAttribute { name: "itemZ";       value: 10 }
+            PathLine { x: pv.width / 2 + pv.near; y: pv.height / 2 }
+            PathAttribute { name: "itemScale";   value: 0.80 }
+            PathAttribute { name: "itemOpacity"; value: 0.80 }
+            PathAttribute { name: "itemZ";       value: 5 }
+            PathLine { x: pv.width / 2 + pv.span / 2; y: pv.height / 2 }
+            PathAttribute { name: "itemScale";   value: 0.55 }
+            PathAttribute { name: "itemOpacity"; value: 0.10 }
+            PathAttribute { name: "itemZ";       value: 0 }
+        }
+
+        delegate: Item {
+            id: tile
+            required property string path
+            required property string name
+            required property int    index
+
+            readonly property bool isCur:    PathView.isCurrentItem
+            readonly property bool isActive: path === pv.activePath
+
+            property real boost: 1      // apply "pop"
+            property real glow:  0.55   // outline glow strength
+            property real fade:  (pv.applying && !isCur) ? 0 : 1
+            Behavior on fade { NumberAnimation { duration: 380; easing.type: Easing.OutCubic } }
+
+            width:   pv.tileW
+            height:  pv.tileH
+            z:       PathView.itemZ !== undefined ? PathView.itemZ : 0
+            scale:   (PathView.itemScale !== undefined ? PathView.itemScale : 1) * boost
+            opacity: (PathView.itemOpacity !== undefined ? PathView.itemOpacity : 1) * fade
+
+            // Parallelogram mask
+            Shape {
+                id: maskShape
+                anchors.fill: parent
+                visible: false
+                layer.enabled: true
+                preferredRendererType: Shape.CurveRenderer
+                ShapePath {
+                    fillColor: "white"; strokeColor: "transparent"; strokeWidth: 0
+                    startX: pv.skew; startY: 0
+                    PathLine { x: tile.width;           y: 0 }
+                    PathLine { x: tile.width - pv.skew; y: tile.height }
+                    PathLine { x: 0;                    y: tile.height }
+                    PathLine { x: pv.skew;              y: 0 }
+                }
+            }
+
+            Item {
+                id: content
+                anchors.fill: parent
+                layer.enabled: true
+                layer.effect: MultiEffect {
+                    maskEnabled:      true
+                    maskSource:       maskShape
+                    maskThresholdMin: 0.5
+                    maskSpreadAtMin:  1.0
+                }
+
+                Rectangle { anchors.fill: parent; color: pv.surface }
+
+                Image {
+                    anchors.fill: parent
+                    visible: !pv.animated
+                    source: pv.animated ? "" : "file://" + tile.path
+                    sourceSize.height: 900
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true; smooth: true; mipmap: true
+                }
+
+                AnimatedImage {
+                    anchors.fill: parent
+                    visible: pv.animated
+                    source: pv.animated ? "file://" + tile.path : ""
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    playing: tile.isCur
+                }
+
+                // Dim everything but the centre tile
+                Rectangle {
+                    anchors.fill: parent; color: "black"
+                    opacity: tile.isCur ? 0 : 0.35
+                    Behavior on opacity { NumberAnimation { duration: 220 } }
+                }
+
+                Rectangle { id: flash; anchors.fill: parent; color: "white"; opacity: 0 }
+            }
+
+            // Outline (+ glow on the centre tile)
+            Shape {
+                anchors.fill: parent
+                preferredRendererType: Shape.CurveRenderer
+                layer.enabled: tile.isCur
+                layer.effect: MultiEffect {
+                    shadowEnabled: true
+                    shadowColor: pv.accent
+                    shadowBlur: 1.0
+                    blurMax: 40
+                    shadowOpacity: tile.glow
+                    shadowHorizontalOffset: 0
+                    shadowVerticalOffset: 0
+                }
+                ShapePath {
+                    fillColor: "transparent"
+                    strokeColor: tile.isCur    ? pv.accent
+                               : tile.isActive ? Qt.alpha(pv.accent, 0.55) : "#1affffff"
+                    strokeWidth: tile.isCur ? 3 : 1.5
+                    joinStyle: ShapePath.MiterJoin
+                    startX: pv.skew; startY: 0
+                    PathLine { x: tile.width;           y: 0 }
+                    PathLine { x: tile.width - pv.skew; y: tile.height }
+                    PathLine { x: 0;                    y: tile.height }
+                    PathLine { x: pv.skew;              y: 0 }
+                }
+            }
+
+            // ✓ badge for the item currently in use
+            Rectangle {
+                visible: tile.isActive
+                x: tile.width - 48; y: 16
+                width: 24; height: 24; radius: 12
+                color: pv.accent
+                Text {
+                    anchors.centerIn: parent
+                    text: "✓"; font.pixelSize: 12; font.weight: Font.Bold
+                    color: pv.badgeText
+                }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                enabled: !pv.applying
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    if (tile.isCur) pv.activated(tile.path)
+                    else            pv.currentIndex = tile.index
+                }
+            }
+
+            // Apply animation: pop + flash, then a pulsing glow until we close
+            SequentialAnimation {
+                id: applyAnim
+                ParallelAnimation {
+                    NumberAnimation { target: tile; property: "boost"; to: 1.1; duration: 420; easing.type: Easing.OutBack }
+                    SequentialAnimation {
+                        NumberAnimation { target: flash; property: "opacity"; to: 0.55; duration: 110 }
+                        NumberAnimation { target: flash; property: "opacity"; to: 0;    duration: 450; easing.type: Easing.OutCubic }
+                    }
+                }
+                SequentialAnimation {
+                    loops: Animation.Infinite
+                    NumberAnimation { target: tile; property: "glow"; to: 1.0;  duration: 450; easing.type: Easing.InOutSine }
+                    NumberAnimation { target: tile; property: "glow"; to: 0.35; duration: 450; easing.type: Easing.InOutSine }
+                }
+            }
+            Connections {
+                target: pv
+                function onApplyingChanged() { if (pv.applying && tile.isCur) applyAnim.start() }
+            }
+        }
+    }
+
     // ── Overlay window ────────────────────────────────────────────────────────
     PanelWindow {
         id: overlay
@@ -266,60 +657,55 @@ ShellRoot {
         WlrLayershell.exclusiveZone: -1
 
         anchors { top: true; bottom: true; left: true; right: true }
-        color: "#cc000000"
+        color: "transparent"
 
-        MouseArea {
+        Item {
+            id: stage
             anchors.fill: parent
-            focus: true
-            Keys.onEscapePressed: Qt.quit()
-            onClicked: Qt.quit()
-        }
-
-        // ── Main card ─────────────────────────────────────────────────────────
-        Rectangle {
-            id: card
-            anchors.centerIn: parent
-            width:  Math.min(parent.width  * 0.84, 920)
-            height: Math.min(parent.height * 0.82, 660)
-            radius: 20
-            color:  root.clBg
-
-            opacity: 0; scale: 0.95
+            opacity: 0
             NumberAnimation on opacity { running: true; to: 1; duration: 220; easing.type: Easing.OutCubic }
-            NumberAnimation on scale   { running: true; to: 1; duration: 220; easing.type: Easing.OutCubic }
+            NumberAnimation {
+                id: stageOut
+                target: stage; property: "opacity"; to: 0
+                duration: 260; easing.type: Easing.InCubic
+                onFinished: Qt.quit()
+            }
 
-            MouseArea { anchors.fill: parent; onClicked: {} }
+            Rectangle { anchors.fill: parent; color: "#d9000000" }
 
-            ColumnLayout {
+            // Click on empty space closes; also owns keyboard focus
+            MouseArea {
                 anchors.fill: parent
-                anchors.margins: 28
-                spacing: 14
+                focus: true
+                onClicked: if (!root.carouselApplying) Qt.quit()
+                Keys.onPressed: (event) => root.handleKey(event)
+            }
 
-                // ── Header ────────────────────────────────────────────────────
+            // ── Floating header: title + tabs ─────────────────────────────────
+            Rectangle {
+                id: header
+                anchors { top: parent.top; topMargin: 36; horizontalCenter: parent.horizontalCenter }
+                width:  headerRow.implicitWidth + 24
+                height: 66
+                radius: 33
+                color: Qt.alpha(root.clBg, 0.94)
+                border.color: Qt.alpha(root.clOutline, 0.45); border.width: 1
+
+                MouseArea { anchors.fill: parent; onClicked: {} }
+
                 RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 10
+                    id: headerRow
+                    anchors.centerIn: parent
+                    spacing: 8
 
-                    Rectangle { width: 7; height: 7; radius: 4; color: root.clPrimary }
+                    Item { width: 6 }
+                    Rectangle { width: 8; height: 8; radius: 4; color: root.clPrimary }
                     Text {
                         text: "Appearance"
-                        font.pixelSize: 19; font.weight: Font.Medium
+                        font.pixelSize: 17; font.weight: Font.Medium
                         color: root.clOnSurface
                     }
-                    Item { Layout.fillWidth: true }
-                    Rectangle {
-                        width: 30; height: 30; radius: 15
-                        color: xBtn.containsMouse ? Qt.alpha(root.clPrimary, 0.15) : "transparent"
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                        Text { anchors.centerIn: parent; text: "✕"; font.pixelSize: 13; color: root.clOnSurfaceV }
-                        MouseArea { id: xBtn; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Qt.quit() }
-                    }
-                }
-
-                // ── Tab bar ───────────────────────────────────────────────────
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
+                    Item { width: 10 }
 
                     Repeater {
                         model: ["Wallpaper", "Color Scheme", "Bar", "Effects", "GIFs"]
@@ -328,21 +714,21 @@ ShellRoot {
                             id: tabRect
                             property bool isActive: index === root.currentTab
                             property bool hov: tabMa.containsMouse
-                            height: 34
-                            width: tabTxt.implicitWidth + 28
-                            radius: 17
-                            color: isActive ? Qt.alpha(root.clPrimary, 0.18)
-                                           : hov ? Qt.alpha(root.clPrimary, 0.07) : "transparent"
+                            height: 48
+                            width: tabTxt.implicitWidth + 40
+                            radius: 24
+                            color: isActive ? Qt.alpha(root.clPrimary, 0.20)
+                                           : hov ? Qt.alpha(root.clPrimary, 0.08) : "transparent"
                             border.color: isActive ? root.clPrimary : Qt.alpha(root.clOutline, 0.40)
                             border.width: 1
-                            Behavior on color       { ColorAnimation { duration: 130 } }
+                            Behavior on color        { ColorAnimation { duration: 130 } }
                             Behavior on border.color { ColorAnimation { duration: 130 } }
 
                             Text {
                                 id: tabTxt
                                 anchors.centerIn: parent
                                 text: modelData
-                                font.pixelSize: 13
+                                font.pixelSize: 15
                                 font.weight: tabRect.isActive ? Font.Medium : Font.Normal
                                 color: tabRect.isActive ? root.clPrimary : root.clOnSurfaceV
                             }
@@ -351,149 +737,172 @@ ShellRoot {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
+                                enabled: !root.carouselApplying
                                 onClicked: root.currentTab = index
                             }
                         }
                     }
 
-                    Item { Layout.fillWidth: true }
+                    Item { width: 6 }
+
+                    // Open folder (Wallpaper / GIFs only)
+                    Rectangle {
+                        visible: root.currentTab === 0 || root.currentTab === 4
+                        height: 48
+                        width: folderTxt.implicitWidth + 36
+                        radius: 24
+                        color: folderMa.containsMouse ? Qt.alpha(root.clPrimary, 0.15) : "transparent"
+                        border.color: Qt.alpha(root.clOutline, 0.40); border.width: 1
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Text {
+                            id: folderTxt
+                            anchors.centerIn: parent
+                            text: "📁  Carpeta"
+                            font.pixelSize: 14
+                            color: root.clOnSurfaceV
+                        }
+                        MouseArea {
+                            id: folderMa
+                            anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: root.openFolder(Quickshell.env("HOME")
+                                + (root.currentTab === 4 ? "/Pictures/gifs" : "/Pictures/wallpapers"))
+                        }
+                    }
+
+                    Rectangle {
+                        width: 48; height: 48; radius: 24
+                        color: xBtn.containsMouse ? Qt.alpha(root.clPrimary, 0.15) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Text { anchors.centerIn: parent; text: "✕"; font.pixelSize: 16; color: root.clOnSurfaceV }
+                        MouseArea { id: xBtn; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Qt.quit() }
+                    }
+                    Item { width: 2 }
+                }
+            }
+
+            // ── Full-width carousels (Wallpaper / GIFs) ───────────────────────
+            Item {
+                id: carouselArea
+                anchors {
+                    top: header.bottom; topMargin: 12
+                    bottom: parent.bottom; bottomMargin: 28
+                    left: parent.left; right: parent.right
+                }
+                visible: root.currentTab === 0 || root.currentTab === 4
+
+                SkewCarousel {
+                    id: wallCarousel
+                    anchors { top: parent.top; left: parent.left; right: parent.right; bottom: info.top; bottomMargin: 6 }
+                    visible: root.currentTab === 0
+                    model: wallModel
+                    activePath: root.current
+                    applying: root.carouselApplying
+                    accent: root.clPrimary; surface: root.clSurfaceHigh; badgeText: root.clBg
+                    onActivated: (path) => root.applyWallpaper(path)
                 }
 
-                // Divider
-                Rectangle {
-                    Layout.fillWidth: true; height: 1
-                    color: Qt.alpha(root.clOutline, 0.35)
+                SkewCarousel {
+                    id: gifCarousel
+                    anchors { top: parent.top; left: parent.left; right: parent.right; bottom: info.top; bottomMargin: 6 }
+                    visible: root.currentTab === 4
+                    animated: true
+                    model: gifModel
+                    activePath: root.gifSlot === "session" ? root.currentSessionGif : root.currentMediaGif
+                    applying: root.carouselApplying
+                    accent: root.clPrimary; surface: root.clSurfaceHigh; badgeText: root.clBg
+                    onActivated: (path) => root.applyGif(path)
                 }
 
-                // ── Content area ──────────────────────────────────────────────
-                Item {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
+                Column {
+                    id: info
+                    anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter }
+                    spacing: 12
 
-                    // ── TAB 0: Wallpaper carousel ─────────────────────────────
-                    ColumnLayout {
-                        anchors.fill: parent
-                        spacing: 10
-                        visible: root.currentTab === 0
-                        opacity: visible ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                    // GIF target slot
+                    Row {
+                        visible: root.currentTab === 4
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 8
 
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Text {
-                                text: "WALLPAPER"
-                                font.pixelSize: 10; font.weight: Font.DemiBold; font.letterSpacing: 2
-                                color: root.clPrimary
-                            }
-
-                            Item { Layout.fillWidth: true }
-
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Aplicar a"
+                            font.pixelSize: 13
+                            color: root.clOnSurfaceV
+                            rightPadding: 4
+                        }
+                        Repeater {
+                            model: [
+                                { id: "session", label: "Panel de sesión" },
+                                { id: "media",   label: "Reproduciendo música" },
+                            ]
                             Rectangle {
-                                height: 26
-                                width: openWallFolderTxt.implicitWidth + 22
-                                radius: 13
-                                color: openWallFolderMa.containsMouse ? Qt.alpha(root.clPrimary, 0.15) : "transparent"
-                                border.color: Qt.alpha(root.clOutline, 0.40)
+                                required property var modelData
+                                property bool isActive: root.gifSlot === modelData.id
+                                height: 40
+                                width: slotTxt.implicitWidth + 36
+                                radius: 20
+                                color: isActive ? Qt.alpha(root.clPrimary, 0.20) : Qt.alpha(root.clBg, 0.6)
+                                border.color: isActive ? root.clPrimary : Qt.alpha(root.clOutline, 0.40)
                                 border.width: 1
-
+                                Behavior on color { ColorAnimation { duration: 120 } }
                                 Text {
-                                    id: openWallFolderTxt
+                                    id: slotTxt
                                     anchors.centerIn: parent
-                                    text: "📁 Abrir carpeta"
-                                    font.pixelSize: 11
-                                    color: root.clOnSurfaceV
+                                    text: parent.modelData.label
+                                    font.pixelSize: 14
+                                    color: parent.isActive ? root.clPrimary : root.clOnSurfaceV
                                 }
                                 MouseArea {
-                                    id: openWallFolderMa
-                                    anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.openFolder(Quickshell.env("HOME") + "/Pictures/wallpapers")
-                                }
-                            }
-                        }
-
-                        ListView {
-                            id: carousel
-                            Layout.fillWidth: true; Layout.fillHeight: true
-                            orientation: ListView.Horizontal
-                            spacing: 10; clip: true; model: wallModel
-                            ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AlwaysOff }
-
-                            delegate: Item {
-                                id: wallDelegate
-                                required property string path
-                                required property string thumb
-                                required property string name
-                                required property bool current
-                                required property int index
-
-                                width: 190; height: carousel.height
-                                property bool isActive: wallDelegate.path === root.current
-
-                                Rectangle {
-                                    id: wallCard
-                                    anchors { fill: parent; topMargin: 4; bottomMargin: 4 }
-                                    radius: 12; clip: true; color: root.clSurfaceHigh
-                                    property bool hov: wallMa.containsMouse
-
-                                    border.color: wallDelegate.isActive ? root.clPrimary
-                                                : hov ? Qt.alpha(root.clPrimary, 0.55) : "transparent"
-                                    border.width: 2
-                                    Behavior on border.color { ColorAnimation { duration: 140 } }
-
-                                    Image {
-                                        anchors { fill: parent; margins: 2 }
-                                        source: "file://" + wallDelegate.path
-                                        sourceSize.width: 420; sourceSize.height: 420
-                                        fillMode: Image.PreserveAspectCrop
-                                        asynchronous: true; smooth: true; mipmap: true
-                                    }
-
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        color: wallCard.hov ? "#14ffffff" : "transparent"
-                                        Behavior on color { ColorAnimation { duration: 140 } }
-                                    }
-
-                                    Rectangle {
-                                        anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-                                        height: 44
-                                        visible: wallCard.hov || wallDelegate.isActive
-                                        gradient: Gradient {
-                                            orientation: Gradient.Vertical
-                                            GradientStop { position: 0.0; color: "transparent" }
-                                            GradientStop { position: 1.0; color: "#d4000000" }
-                                        }
-                                        Text {
-                                            anchors { bottom: parent.bottom; bottomMargin: 9; horizontalCenter: parent.horizontalCenter }
-                                            text: wallDelegate.name.replace(/_/g, " ")
-                                            font.pixelSize: 11; color: "white"
-                                            elide: Text.ElideRight; width: parent.width - 16
-                                            horizontalAlignment: Text.AlignHCenter
-                                        }
-                                    }
-
-                                    Rectangle {
-                                        anchors { top: parent.top; right: parent.right; margins: 8 }
-                                        width: 20; height: 20; radius: 10; color: root.clPrimary
-                                        visible: wallDelegate.isActive
-                                        Text { anchors.centerIn: parent; text: "✓"; font.pixelSize: 10; font.weight: Font.Bold; color: root.clBg }
-                                    }
-
-                                    MouseArea {
-                                        id: wallMa
-                                        anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            root.current = wallDelegate.path
-                                            applyWall.command = ["caelestia", "wallpaper", "-f", wallDelegate.path]
-                                            applyWall.running = true
-                                        }
-                                    }
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    enabled: !root.carouselApplying
+                                    onClicked: root.gifSlot = parent.modelData.id
                                 }
                             }
                         }
                     }
+
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        property var cur: (root.currentTab === 4 ? gifCarousel : wallCarousel).currentItem
+                        text: cur ? cur.name.replace(/_/g, " ") : ""
+                        font.pixelSize: 19; font.weight: Font.Medium
+                        color: root.clOnSurface
+                    }
+
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: root.carouselApplying ? "Aplicando…"
+                            : root.currentTab === 4 ? "←  →  mover      ↑ ↓  destino      ⏎  aplicar      esc  cerrar"
+                            :                         "←  →  mover      ⏎  aplicar      esc  cerrar"
+                        font.pixelSize: 13; font.letterSpacing: 0.5
+                        color: root.carouselApplying ? root.clPrimary : Qt.alpha(root.clOnSurfaceV, 0.75)
+                        SequentialAnimation on opacity {
+                            running: root.carouselApplying
+                            loops: Animation.Infinite
+                            NumberAnimation { to: 0.35; duration: 450 }
+                            NumberAnimation { to: 1.0;  duration: 450 }
+                        }
+                    }
+                }
+            }
+
+            // ── Card for the other tabs (Color Scheme / Bar / Effects) ────────
+            Rectangle {
+                id: card
+                visible: root.currentTab >= 1 && root.currentTab <= 3
+                anchors { top: header.bottom; topMargin: 20; horizontalCenter: parent.horizontalCenter }
+                width:  Math.min(parent.width * 0.84, 920)
+                height: Math.min(parent.height - header.height - 36 - 20 - 36, 660)
+                radius: 20
+                color:  root.clBg
+
+                MouseArea { anchors.fill: parent; onClicked: {} }
+
+                Item {
+                    anchors.fill: parent
+                    anchors.margins: 28
 
                     // ── TAB 1: Color scheme ───────────────────────────────────
                     ColumnLayout {
@@ -509,74 +918,168 @@ ShellRoot {
                             color: root.clPrimary
                         }
 
+                        // Description / status bar
                         Rectangle {
-                            Layout.fillWidth: true; height: 52; radius: 10
+                            Layout.fillWidth: true; height: 52; radius: 14
                             color: root.applyingScheme ? Qt.alpha(root.clPrimary, 0.08) : Qt.alpha(root.clSurface, 0.9)
                             border.color: root.applyingScheme ? Qt.alpha(root.clPrimary, 0.4) : Qt.alpha(root.clOutline, 0.35)
                             border.width: 1
-                            Behavior on color       { ColorAnimation { duration: 160 } }
+                            Behavior on color        { ColorAnimation { duration: 160 } }
                             Behavior on border.color { ColorAnimation { duration: 160 } }
 
                             Text {
                                 anchors { verticalCenter: parent.verticalCenter; left: parent.left; right: parent.right; margins: 16 }
                                 text: {
                                     if (root.applyingScheme) return "Applying scheme…"
-                                    if (root.hoveredScheme === "") return "Hover over a scheme to see a description"
+                                    if (root.hoveredScheme === "") return "Hover over a scheme to see a description — click to apply"
                                     var s = root.schemes.find(x => x.name === root.hoveredScheme)
-                                    return s ? "● " + s.name + "  —  " + s.desc : ""
+                                    return "● " + root.hoveredScheme + "  —  " + (s ? s.desc : "")
                                 }
                                 font.pixelSize: 12
-                                color: root.applyingScheme        ? root.clPrimary
-                                     : root.hoveredScheme === "" ? Qt.alpha(root.clOnSurfaceV, 0.45)
-                                                                 : root.clOnSurface
-                                Behavior on color { ColorAnimation { duration: 120 } }
-                                wrapMode: Text.WordWrap
+                                elide: Text.ElideRight
+                                color: root.applyingScheme ? root.clPrimary : root.clOnSurfaceV
                             }
                         }
 
-                        Flow {
-                            Layout.fillWidth: true; spacing: 8
+                        // Scheme cards — each one painted with its own palette
+                        GridView {
+                            id: schemeGrid
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+                            cellWidth:  Math.floor(width / 3)
+                            cellHeight: 136
+                            model: root.schemeOrder
+                            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-                            Repeater {
-                                model: root.schemes
+                            delegate: Item {
+                                id: sc
+                                required property string modelData
+                                readonly property string name:     modelData
+                                readonly property var    flavours: Object.keys(root.schemePalettes[name] || {})
+                                readonly property string flavour:  root.flavourChoice[name] || root.defaultFlavour(name)
+                                readonly property var    pal:      (root.schemePalettes[name] || {})[flavour] || {}
+                                readonly property bool   isCurrent: name === root.currentSchemeName
+                                                                 && flavour === root.currentSchemeFlavour
+
+                                width: schemeGrid.cellWidth
+                                height: schemeGrid.cellHeight
 
                                 Rectangle {
-                                    id: chip
-                                    property bool hov: chipMa.containsMouse
-                                    width: chipTxt.implicitWidth + 28; height: 34; radius: 17
-                                    color: (hov && !root.applyingScheme)
-                                        ? Qt.alpha(root.clPrimary, 0.18) : Qt.alpha(root.clOnSurface, 0.06)
-                                    border.color: (hov && !root.applyingScheme)
-                                        ? root.clPrimary : Qt.alpha(root.clOutline, 0.55)
-                                    border.width: 1
-                                    Behavior on color       { ColorAnimation { duration: 130 } }
-                                    Behavior on border.color { ColorAnimation { duration: 130 } }
-
-                                    Text {
-                                        id: chipTxt; anchors.centerIn: parent
-                                        text: modelData.name; font.pixelSize: 13
-                                        color: root.applyingScheme ? Qt.alpha(root.clOnSurface, 0.40) : root.clOnSurface
-                                        Behavior on color { ColorAnimation { duration: 130 } }
-                                    }
+                                    id: scCard
+                                    anchors { fill: parent; margins: 7 }
+                                    radius: 18
+                                    property bool hov: scMa.containsMouse
+                                    color: root.c(sc.pal.background)
+                                    border.color: sc.isCurrent ? root.c(sc.pal.primary)
+                                                : hov ? Qt.alpha(root.c(sc.pal.primary), 0.7)
+                                                : Qt.alpha(root.c(sc.pal.outline), 0.45)
+                                    border.width: sc.isCurrent ? 2 : 1
+                                    scale: hov && !root.applyingScheme ? 1.03 : 1
+                                    opacity: root.applyingScheme && !sc.isCurrent ? 0.55 : 1
+                                    Behavior on scale        { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                                    Behavior on opacity      { NumberAnimation { duration: 160 } }
+                                    Behavior on color        { ColorAnimation  { duration: 160 } }
+                                    Behavior on border.color { ColorAnimation  { duration: 140 } }
 
                                     MouseArea {
-                                        id: chipMa
-                                        anchors.fill: parent; hoverEnabled: true
+                                        id: scMa
+                                        anchors.fill: parent
+                                        hoverEnabled: true
                                         enabled: !root.applyingScheme
-                                        cursorShape: root.applyingScheme ? Qt.ArrowCursor : Qt.PointingHandCursor
-                                        onEntered: root.hoveredScheme = modelData.name
-                                        onExited:  root.hoveredScheme = ""
-                                        onClicked: {
-                                            root.applyingScheme = true
-                                            applyScheme.command = ["caelestia", "scheme", "set", "-n", modelData.name]
-                                            applyScheme.running = true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onEntered: root.hoveredScheme = sc.name
+                                        onExited:  if (root.hoveredScheme === sc.name) root.hoveredScheme = ""
+                                        onClicked: root.applySchemeChoice(sc.name, sc.flavour)
+                                    }
+
+                                    ColumnLayout {
+                                        anchors { fill: parent; margins: 14 }
+                                        spacing: 9
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 6
+                                            Text {
+                                                text: sc.name
+                                                font.pixelSize: 15; font.weight: Font.Medium
+                                                color: root.c(sc.pal.onSurface)
+                                            }
+                                            Text {
+                                                visible: sc.flavours.length <= 1 && sc.flavour !== "default"
+                                                text: sc.flavour
+                                                font.pixelSize: 11
+                                                color: root.c(sc.pal.onSurfaceVariant)
+                                            }
+                                            Item { Layout.fillWidth: true }
+                                            Rectangle {
+                                                visible: sc.isCurrent
+                                                width: 22; height: 22; radius: 11
+                                                color: root.c(sc.pal.primary)
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    text: "✓"; font.pixelSize: 11; font.weight: Font.Bold
+                                                    color: root.c(sc.pal.onPrimary)
+                                                }
+                                            }
                                         }
+
+                                        // Palette swatches
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 6
+                                            Repeater {
+                                                model: ["primary", "secondary", "tertiary", "error", "surfaceContainerHighest"]
+                                                Rectangle {
+                                                    required property string modelData
+                                                    Layout.fillWidth: true
+                                                    height: 22; radius: 11
+                                                    color: root.c(sc.pal[modelData])
+                                                    Behavior on color { ColorAnimation { duration: 160 } }
+                                                }
+                                            }
+                                        }
+
+                                        // Flavour pills (only for schemes with more than one)
+                                        Row {
+                                            visible: sc.flavours.length > 1
+                                            spacing: 5
+                                            Repeater {
+                                                model: sc.flavours
+                                                Rectangle {
+                                                    required property string modelData
+                                                    property bool active: modelData === sc.flavour
+                                                    height: 22
+                                                    width: flTxt.implicitWidth + 16
+                                                    radius: 11
+                                                    color: active ? Qt.alpha(root.c(sc.pal.primary), 0.25) : "transparent"
+                                                    border.color: active ? root.c(sc.pal.primary) : Qt.alpha(root.c(sc.pal.outline), 0.6)
+                                                    border.width: 1
+                                                    Text {
+                                                        id: flTxt
+                                                        anchors.centerIn: parent
+                                                        text: parent.modelData
+                                                        font.pixelSize: 11
+                                                        color: parent.active ? root.c(sc.pal.primary) : root.c(sc.pal.onSurfaceVariant)
+                                                    }
+                                                    MouseArea {
+                                                        anchors.fill: parent
+                                                        hoverEnabled: true
+                                                        enabled: !root.applyingScheme
+                                                        cursorShape: Qt.PointingHandCursor
+                                                        onEntered: root.hoveredScheme = sc.name
+                                                        onClicked: root.setFlavour(sc.name, parent.modelData)
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Item { Layout.fillHeight: true }
                                     }
                                 }
                             }
                         }
-
-                        Item { Layout.fillHeight: true }
                     }
 
                     // ── TAB 2: Bar behavior ───────────────────────────────────
@@ -1073,155 +1576,6 @@ ShellRoot {
                         }
 
                         Item { Layout.fillHeight: true }
-                    }
-
-                    // ── TAB 4: GIFs ────────────────────────────────────────────
-                    ColumnLayout {
-                        anchors.fill: parent
-                        spacing: 10
-                        visible: root.currentTab === 4
-                        opacity: visible ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: 150 } }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Text {
-                                text: "GIFS"
-                                font.pixelSize: 10; font.weight: Font.DemiBold; font.letterSpacing: 2
-                                color: root.clPrimary
-                            }
-
-                            Item { Layout.fillWidth: true }
-
-                            Rectangle {
-                                height: 26
-                                width: openGifFolderTxt.implicitWidth + 22
-                                radius: 13
-                                color: openGifFolderMa.containsMouse ? Qt.alpha(root.clPrimary, 0.15) : "transparent"
-                                border.color: Qt.alpha(root.clOutline, 0.40)
-                                border.width: 1
-
-                                Text {
-                                    id: openGifFolderTxt
-                                    anchors.centerIn: parent
-                                    text: "📁 Abrir carpeta"
-                                    font.pixelSize: 11
-                                    color: root.clOnSurfaceV
-                                }
-                                MouseArea {
-                                    id: openGifFolderMa
-                                    anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.openFolder(Quickshell.env("HOME") + "/Pictures/gifs")
-                                }
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Repeater {
-                                model: [
-                                    { id: "session", label: "Panel de sesión" },
-                                    { id: "media",   label: "Reproduciendo música" },
-                                ]
-
-                                Rectangle {
-                                    required property var modelData
-                                    property bool isActive: root.gifSlot === modelData.id
-                                    height: 34
-                                    width: slotTxt.implicitWidth + 28
-                                    radius: 17
-                                    color: isActive ? Qt.alpha(root.clPrimary, 0.18) : "transparent"
-                                    border.color: isActive ? root.clPrimary : Qt.alpha(root.clOutline, 0.40)
-                                    border.width: 1
-
-                                    Text {
-                                        id: slotTxt
-                                        anchors.centerIn: parent
-                                        text: parent.modelData.label
-                                        font.pixelSize: 13
-                                        color: parent.isActive ? root.clPrimary : root.clOnSurfaceV
-                                    }
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.gifSlot = parent.modelData.id
-                                    }
-                                }
-                            }
-
-                            Item { Layout.fillWidth: true }
-                        }
-
-                        Text {
-                            text: "Carpeta: ~/Pictures/gifs — agregá archivos .gif ahí y aparecen acá"
-                            font.pixelSize: 11
-                            color: root.clOnSurfaceV
-                        }
-
-                        GridView {
-                            id: gifGrid
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            clip: true
-                            cellWidth: 150; cellHeight: 150
-                            model: gifModel
-
-                            delegate: Item {
-                                required property string path
-                                required property string name
-                                required property bool isSession
-                                required property bool isMedia
-
-                                width: gifGrid.cellWidth; height: gifGrid.cellHeight
-                                property bool isCurrentForSlot: root.gifSlot === "session" ? isSession : isMedia
-
-                                Rectangle {
-                                    anchors.fill: parent
-                                    anchors.margins: 6
-                                    radius: 12; clip: true; color: root.clSurfaceHigh
-                                    property bool hov: gifMa.containsMouse
-
-                                    border.color: parent.parent.isCurrentForSlot ? root.clPrimary
-                                                : hov ? Qt.alpha(root.clPrimary, 0.55) : "transparent"
-                                    border.width: 2
-                                    Behavior on border.color { ColorAnimation { duration: 140 } }
-
-                                    AnimatedImage {
-                                        anchors.fill: parent
-                                        anchors.margins: 2
-                                        source: "file://" + parent.parent.path
-                                        fillMode: AnimatedImage.PreserveAspectCrop
-                                        asynchronous: true
-                                        playing: true
-                                    }
-
-                                    Rectangle {
-                                        anchors { top: parent.top; right: parent.right; margins: 8 }
-                                        width: 20; height: 20; radius: 10; color: root.clPrimary
-                                        visible: parent.parent.isCurrentForSlot
-                                        Text { anchors.centerIn: parent; text: "✓"; font.pixelSize: 10; font.weight: Font.Bold; color: root.clBg }
-                                    }
-
-                                    MouseArea {
-                                        id: gifMa
-                                        anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            setGifProc.command = [
-                                                "python3",
-                                                Qt.resolvedUrl("set_gif.py").toString().replace("file://", ""),
-                                                root.gifSlot,
-                                                parent.parent.path
-                                            ]
-                                            setGifProc.running = true
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
             }

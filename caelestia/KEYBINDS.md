@@ -16,6 +16,7 @@ for the full default list.
 | Cycle next in group | `Ctrl + Alt + Tab` | `Super + ]` |
 | Cycle previous in group | `Ctrl + Shift + Alt + Tab` | `Super + [` |
 | Move window to special workspace | `Super + Alt + S` or `Ctrl + Super + Shift + Up` | `Super + Shift + S` (single combo) |
+| Delete clipboard entry | `Super + Alt + V` | `Super + Shift + V` (reachable on a split keyboard without `Alt`) |
 
 ## Disabled (freed up / redundant)
 
@@ -28,6 +29,16 @@ for the full default list.
 | Fullscreen (default dispatcher) | `Super + F` | Replaced — see custom bind below, same key, different behaviour |
 | Screenshot (frozen) | `Super + Shift + S` | Freed to avoid colliding with "move to special workspace" above |
 | Move window to next/prev workspace, `Ctrl+Super+Shift+arrow` variants | — | Kept the mouse-scroll/PageUp/PageDown alternatives only |
+| Launcher on `Super` tap | `Super` | Launcher only on `Super + Q` |
+| Screenshot (default `caelestia screenshot`) | `Print` | Fired together with the custom `Print` bind below |
+| Screenshot region (Caelestia) | `Super + Shift + Alt + S` | Not used |
+| Editor | `Super + C` | Not used |
+| Audio settings | `Ctrl + Alt + V` | Not used |
+| Toggle floating (default) | `Super + Alt + Space` | Duplicate of `Super + Space` |
+| Bordered fullscreen | `Super + Alt + F` | Not used |
+| Resize, `Super + Alt + arrow` variants | — | Kept `Super (+ Shift) + Minus/Equal` only |
+| Paste latest clipboard entry | `Ctrl + Shift + Alt + V` | Needs `ydotool` |
+| Media stop | `Ctrl + Super + Backspace` | Not used (`XF86AudioStop` still works) |
 
 ## New / custom
 
@@ -37,12 +48,13 @@ for the full default list.
 | `Super + H` | [Keybinds Viewer](../quickshell/keybinds-viewer) — this list, live, in a searchable overlay |
 | `Super + Q` | Open launcher (freed up since Close Window moved to `Super + W`) |
 | `Super + F` | Fullscreen **and** auto-hide the bar in one action |
-| `Super + Space` | Toggle floating (extra alias — the default `Super + Alt + Space` still works too) |
+| `Super + Space` | Toggle floating (the only floating toggle — `Super + Alt + Space` is disabled) |
 | `Super + J` | Toggle split layout (`togglesplit`) |
 | `Super + Tab` | Cycle next window (extra alias of the default `Alt + Tab`) |
 | `Print` | Screenshot region → Swappy |
 | `Super + Print` | Screenshot region → clipboard |
 | `Shift + Print` | Screenshot region → file |
+| `Super + Ctrl + I` | Switch to/from the [infinite desktop mode](../phantomat) — keys that change in that mode are listed there |
 
 ## Known gotcha this fixed
 

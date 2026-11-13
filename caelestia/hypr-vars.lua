@@ -6,6 +6,9 @@ return {
     -- Apps
     terminal = "kitty",
 
+    -- Audio
+    volumeStep = 5, -- upstream default is 10
+
     -- Remapped keybinds
     kbTerminal     = "SUPER + RETURN",
     kbCloseWindow  = "SUPER + W",
@@ -33,6 +36,27 @@ return {
     kbRecordRegion         = "",
     kbWindowFullscreen     = "",                                        -- replaced by custom bind in hypr-user.lua (auto-hides bar too)
     kbScreenshotFreeze     = "",                                        -- was SUPER+SHIFT+S, collided with kbMoveWinToWsSpecial below
+
+    -- More unbinds (empty string = bind not registered). To re-enable one,
+    -- delete its line and it falls back to the upstream default shown.
+    kbScreenshot           = "",  -- default Print: fired together with the custom Print bind in hypr-user.lua
+    kbScreenshotRegion     = "",  -- default SUPER+SHIFT+ALT+S: not used
+    kbLauncher             = "",  -- default SUPER (tap): launcher only opens with SUPER+Q (hypr-user.lua)
+    kbEditor               = "",  -- default SUPER+C: not used
+    kbAudioSettings        = "",  -- default CTRL+ALT+V: not used (opens pwvucontrol)
+    kbToggleWindowFloating = "",  -- default SUPER+ALT+Space: duplicate of SUPER+Space (hypr-user.lua)
+    kbWindowBorderedFullscreen = "", -- default SUPER+ALT+F: not used
+    kbClipboardPasteLatest = "",  -- default CTRL+SHIFT+ALT+V: needs ydotool
+    kbMediaStop            = "",  -- default CTRL+SUPER+Backspace: not used (XF86AudioStop still works)
+
+    -- Delete clipboard entry: a split keyboard without an ALT key can still reach it
+    kbClipboardDel         = "SUPER + SHIFT + V",  -- default SUPER+ALT+V
+
+    -- Resize: keep SUPER (+SHIFT) + Minus/Equal, drop the SUPER + ALT + arrows alternates
+    kbWindowDecreaseWidth  = "SUPER + Minus",
+    kbWindowIncreaseWidth  = "SUPER + Equal",
+    kbWindowDecreaseHeight = "SUPER + SHIFT + Minus",
+    kbWindowIncreaseHeight = "SUPER + SHIFT + Equal",
 
     -- Move window to special workspace: now only SUPER + SHIFT + S
     kbMoveWinToWsSpecial = "SUPER + SHIFT + S",

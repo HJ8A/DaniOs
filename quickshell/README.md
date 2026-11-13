@@ -28,6 +28,17 @@ hl.bind("SUPER + H", hl.dsp.exec_cmd(home .. "/.config/quickshell/keybinds-viewe
 colour scheme so its own UI stays in sync with whatever wallpaper is
 active — no manual re-theming needed.
 
+- **Wallpaper / GIFs:** a full-width infinite carousel of tall
+  parallelogram tiles floating over the screen. `←`/`→` (or the mouse
+  wheel, or drag) move it, `Enter` (or a click on the centre tile) applies
+  with a pop/flash animation, `Esc` closes. In GIFs, `↑`/`↓` switch the
+  target slot and only the centre GIF animates.
+- **Color Scheme:** one card per scheme, painted with that scheme's own
+  palette (background, text and 5 swatches) read live from
+  `caelestia scheme list` — every scheme the CLI ships shows up, plus
+  flavour pills for schemes that have several (mocha/latte, …). The
+  active one has a ✓; applying recolours the picker itself at once.
+
 Needs these folders to exist (create them, drop your own images in):
 
 - `~/Pictures/wallpapers` — for the Wallpaper tab

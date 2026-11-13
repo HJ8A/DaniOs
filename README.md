@@ -3,7 +3,7 @@
 This is a personal fork of the [Caelestia](https://github.com/caelestia-dots)
 dotfiles, branded **DaniOS**. All credit for the base Hyprland/Quickshell
 setup goes to the upstream Caelestia project — this fork adds personal
-keybind changes and two extra Quickshell widgets on top.
+keybind changes, two extra Quickshell widgets and an infinite desktop mode on top.
 
 ## What DaniOS adds on top of vanilla Caelestia
 
@@ -18,6 +18,12 @@ keybind changes and two extra Quickshell widgets on top.
   blur/opacity sliders, **and a GIFs tab** (pick the session-panel GIF and
   the "now playing" media-widget GIF from your own `~/Pictures/gifs`
   folder) — plus an "open folder" button on the Wallpaper and GIFs tabs.
+- **[`phantomat/`](./phantomat)** (`Super+Ctrl+I`) — an **infinite
+  desktop mode**: every window on one zoomable 2D canvas, switchable to and
+  from the normal Caelestia mode with one key. Built on a fork of the
+  [Phantomat](https://github.com/kaolti/phantomat) Hyprland plugin.
+- **[`kitty/kitty.conf`](./kitty/kitty.conf)** — terminal config, with a
+  cursor trail (`cursor_trail`) to match a smear-cursor editor.
 - **[`quickshell/keybinds-viewer`](./quickshell/keybinds-viewer)**
   (`Super+H`) — a live, searchable cheatsheet of every keybind, grouped by
   category. Reads your actual `hypr-vars.lua`/`variables.lua` at open time,
