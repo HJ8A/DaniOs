@@ -8,8 +8,13 @@ and pan around it like a whiteboard. One key switches between the normal
 
 The canvas itself is the [Phantomat](https://github.com/kaolti/phantomat)
 Hyprland plugin by kaolti. DaniOS uses a fork with a few changes
-(**[HJ8A/phantomat](https://github.com/HJ8A/phantomat)**, branch
-`caelestia-h`); this folder is only the integration with Caelestia.
+(**[HJ8A/phantomat](https://github.com/HJ8A/phantomat)**); this folder is
+only the integration with Caelestia.
+
+| Hyprland | Fork branch | Base |
+|---|---|---|
+| **0.57** | **`caelestia-h-057`** | [djeddi-yacine's 0.57 port](https://github.com/djeddi-yacine/phantomat) of kaolti's plugin (upstream doesn't build on 0.57 yet, kaolti/phantomat#20) |
+| 0.56 | `caelestia-h` | kaolti/phantomat `a1e8a08` |
 
 ## What's in here
 
@@ -20,7 +25,7 @@ Hyprland plugin by kaolti. DaniOS uses a fork with a few changes
 
 ## Install
 
-Needs Hyprland 0.56 with the Lua config, `g++ ≥ 15` and Hyprland's
+Needs Hyprland 0.57 (or 0.56, see the table above) with the Lua config, `g++ ≥ 15` and Hyprland's
 headers (`sudo pacman -S --needed base-devel hyprland hyprgraphics pango lua`).
 
 ```sh
@@ -30,7 +35,7 @@ install -Dm644 spatialoverview.lua ~/.config/hypr/spatialoverview.lua
 install -Dm755 phantomat-mode.sh   ~/.config/phantomat/phantomat-mode.sh
 
 # 2. build + install the plugin (adds a marked block to hyprland.lua)
-git clone -b caelestia-h https://github.com/HJ8A/phantomat.git ~/Proyectos/phantomat
+git clone -b caelestia-h-057 https://github.com/HJ8A/phantomat.git ~/Proyectos/phantomat
 cd ~/Proyectos/phantomat && scripts/install.sh
 
 # 3. the installer may open the canvas on its own: go back to Caelestia mode
@@ -41,6 +46,16 @@ cd ~/Proyectos/phantomat && scripts/install.sh
 `cd ~/Proyectos/phantomat && git pull && scripts/install.sh`, then step 3.
 If it doesn't build yet for the new Hyprland, Caelestia mode keeps working
 (`spatialoverview.lua` does nothing while the plugin isn't loaded).
+
+**If the new build doesn't take over** (the installer says it could not unload
+the running Phantomat safely — its `safe-unload` helper doesn't work on 0.57
+yet): with the canvas closed (Caelestia mode), reload it by hand:
+
+```sh
+hyprctl plugin unload ~/.local/share/spatial-overview/spatialoverview.so
+hyprctl plugin load   ~/.local/share/spatial-overview/spatialoverview.so
+hyprctl reload
+```
 
 **Uninstall:** `cd ~/Proyectos/phantomat && scripts/uninstall.sh`.
 
@@ -83,12 +98,17 @@ tunes the look, `F1` lists every key.
 - A session always starts in Caelestia mode; if one ended in Infinite mode,
   `hyprland.start` restores bar and frame.
 
-## Fork changes (`HJ8A/phantomat`, branch `caelestia-h`)
+## Fork changes (`HJ8A/phantomat`, branch `caelestia-h-057`)
 
 - `canvas.open_filled`: new windows open filled, in the first free
   screen-sized slot of a fixed ring around the canvas centre (centre,
   right, up, left, down, diagonals, next ring) — the canvas fills from the
-  centre out instead of drifting after the camera.
+  centre out instead of drifting after the camera. A window that opens
+  maximized (apps that remember it, e.g. kitty, browsers) has the maximize
+  dropped: on the canvas maximized reads as fullscreen.
+- Windows opened while the canvas is up tile again when it closes (on the
+  0.57 port they stayed floating).
+- `scripts/install.sh` works with Hyprland 0.57's `hyprctl clients` JSON.
 - Plain middle click goes to the window (paste); `Super` + middle-drag pans.
 - `Delete` in the map closes the selected window.
 - `Ctrl + A` keeps screen-sized windows at the exact fill size (it used to

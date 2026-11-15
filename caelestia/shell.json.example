@@ -25,12 +25,20 @@
             "enabled": true,
             "invertColors": false,
             "position": "bottom-right",
+            "scale": 1.5,
+            "background": {
+                "enabled": false,
+                "blur": false
+            },
             "shadow": {
                 "enabled": true
             }
         },
         "visualiser": {
-            "enabled": false
+            "enabled": true,
+            "autoHide": true,
+            "blur": true,
+            "rounding": 2
         }
     },
     "bar": {
@@ -104,5 +112,8 @@
             "kbLayoutChanged": true,
             "nowPlaying": false
         }
+    },
+    "services": {
+        "visualiserBars": 32
     }
 }

@@ -23,6 +23,16 @@ hl.monitor({
     scale    = 1.6,
 })
 
+-- Don't switch the screen to HDR when a colour-managed app goes fullscreen
+-- (Brave/Chromium, YouTube). Since Hyprland 0.57 (cm_auto_hdr = 1 by default)
+-- that caused a black flash, a colour-gamut notification and a duller picture
+-- on HDR-capable panels. Remove this block if you do want automatic HDR.
+hl.config({
+    render = {
+        cm_auto_hdr = 0,
+    },
+})
+
 -- NVIDIA fix — only needed if you have an NVIDIA GPU
 hl.env("WLR_NO_HARDWARE_CURSORS", "1")
 hl.config({
