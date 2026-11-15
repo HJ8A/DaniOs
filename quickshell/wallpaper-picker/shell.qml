@@ -671,7 +671,12 @@ ShellRoot {
                 onFinished: Qt.quit()
             }
 
-            Rectangle { anchors.fill: parent; color: "#d9000000" }
+            // En la pestaña Widgets el fondo se aclara para ver el reloj real cambiar
+            Rectangle {
+                anchors.fill: parent
+                color: root.currentTab === 5 ? "#66000000" : "#d9000000"
+                Behavior on color { ColorAnimation { duration: 200 } }
+            }
 
             // Click on empty space closes; also owns keyboard focus
             MouseArea {
@@ -708,7 +713,7 @@ ShellRoot {
                     Item { width: 10 }
 
                     Repeater {
-                        model: ["Wallpaper", "Color Scheme", "Bar", "Effects", "GIFs"]
+                        model: ["Wallpaper", "Color Scheme", "Bar", "Effects", "GIFs", "Widgets"]
 
                         Rectangle {
                             id: tabRect
@@ -884,6 +889,35 @@ ShellRoot {
                             NumberAnimation { to: 0.35; duration: 450 }
                             NumberAnimation { to: 1.0;  duration: 450 }
                         }
+                    }
+                }
+            }
+
+            // ── TAB 5: Widgets (se carga solo mientras está abierta) ──────────
+            Rectangle {
+                id: widgetsCard
+                visible: root.currentTab === 5
+                anchors { top: header.bottom; topMargin: 20; horizontalCenter: parent.horizontalCenter }
+                width:  Math.min(parent.width * 0.84, 920)
+                height: Math.min(parent.height - header.height - 36 - 20 - 36, 660)
+                radius: 20
+                color:  Qt.alpha(root.clBg, 0.96)
+
+                MouseArea { anchors.fill: parent; onClicked: {} }
+
+                Loader {
+                    anchors.fill: parent
+                    anchors.margins: 28
+                    active: root.currentTab === 5
+                    source: "WidgetsTab.qml"
+                    onLoaded: {
+                        item.cBg = Qt.binding(() => root.clBg)
+                        item.cSurface = Qt.binding(() => root.clSurface)
+                        item.cSurfaceHigh = Qt.binding(() => root.clSurfaceHigh)
+                        item.cPrimary = Qt.binding(() => root.clPrimary)
+                        item.cText = Qt.binding(() => root.clOnSurface)
+                        item.cTextV = Qt.binding(() => root.clOnSurfaceV)
+                        item.cOutline = Qt.binding(() => root.clOutline)
                     }
                 }
             }

@@ -1,0 +1,78 @@
+{
+    "clock": {
+        "enabled": true,
+        "style": "analog",
+        "position": "top-right",
+        "marginX": 40,
+        "marginY": 40,
+        "size": 240,
+        "analog": {
+            "numerals": "arabic",
+            "seconds": false,
+            "format24": false,
+            "showDigital": true,
+            "font": "",
+            "numberSize": 0.11,
+            "digitalSize": 0.15,
+            "smoothHands": true,
+            "shadow": true,
+            "colors": {
+                "numbers": "auto",
+                "hourHand": "auto",
+                "minuteHand": "auto",
+                "secondHand": "auto",
+                "center": "auto",
+                "digital": "auto"
+            }
+        },
+        "sunmoon": {
+            "layout": "transform",
+            "format24": false,
+            "showDigital": true,
+            "showSunTimes": true,
+            "showMoonPhase": true,
+            "twilight": 6,
+            "font": "",
+            "digitalSize": 0.15,
+            "infoSize": 0.06,
+            "shadow": true,
+            "previewTime": "",
+            "colors": {
+                "sun": "#ffc94d",
+                "sunset": "#ff8a3d",
+                "moon": "#ece9df",
+                "moonDark": "auto",
+                "arc": "auto",
+                "digital": "auto",
+                "info": "auto"
+            }
+        },
+        "earth": {
+            "format24": false,
+            "showDigital": true,
+            "showMarker": true,
+            "showSunMoon": true,
+            "spinOnHover": true,
+            "spinSeconds": 20,
+            "nightLights": 1.4,
+            "atmosphere": 0.8,
+            "font": "",
+            "digitalSize": 0.15,
+            "shadow": true,
+            "previewTime": "",
+            "colors": {
+                "atmosphere": "auto",
+                "marker": "auto",
+                "sun": "#ffc94d",
+                "moon": "#ece9df",
+                "moonDark": "auto",
+                "digital": "auto"
+            }
+        }
+    },
+    "location": {
+        "name": "Lima",
+        "latitude": -12.05,
+        "longitude": -77.04
+    }
+}

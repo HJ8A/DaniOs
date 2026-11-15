@@ -54,6 +54,8 @@ hl.config({
 -- `pactl list short sinks` — a PipeWire *node ID* (a bare number) is NOT
 -- stable across reboots, always use the sink *name* instead.
 hl.on("hyprland.start", function()
+    -- Desktop widgets (clock, …): ~/.config/quickshell/desktop-widgets
+    hl.exec_cmd("qs -c desktop-widgets")
     hl.exec_cmd("sleep 3 && pactl set-default-sink alsa_output.pci-0000_00_1f.3.analog-stereo")
 end)
 

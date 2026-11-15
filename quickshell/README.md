@@ -1,14 +1,14 @@
 # `quickshell/` — custom widgets (DaniOS)
 
-Two standalone Quickshell apps, independent of the main Caelestia Shell
-process — each runs as its own `qs -c <name>` instance, toggled by a
-keybind.
+Three standalone Quickshell apps, independent of the main Caelestia Shell
+process — each runs as its own `qs -c <name>` instance. The picker and the
+keybinds viewer are toggled by a keybind; the desktop widgets run always.
 
 ## Install
 
 ```sh
 mkdir -p ~/.config/quickshell
-cp -r wallpaper-picker keybinds-viewer ~/.config/quickshell/
+cp -a wallpaper-picker keybinds-viewer desktop-widgets ~/.config/quickshell/
 chmod +x ~/.config/quickshell/wallpaper-picker/toggle.sh \
          ~/.config/quickshell/wallpaper-picker/*.py \
          ~/.config/quickshell/keybinds-viewer/toggle.sh
@@ -24,7 +24,7 @@ hl.bind("SUPER + H", hl.dsp.exec_cmd(home .. "/.config/quickshell/keybinds-viewe
 
 ## wallpaper-picker (`Super + I`)
 
-5 tabs: **Wallpaper, Color Scheme, Bar, Effects, GIFs**. Reads the live
+6 tabs: **Wallpaper, Color Scheme, Bar, Effects, GIFs, Widgets**. Reads the live
 colour scheme so its own UI stays in sync with whatever wallpaper is
 active — no manual re-theming needed.
 
@@ -49,6 +49,29 @@ Needs these folders to exist (create them, drop your own images in):
 Requires: `python3`, `lua5.4`, `hyprctl`, and `thunar` (used by the
 "open folder" buttons — swap `"thunar"` for your own file manager in
 `shell.qml`'s `openFolder()` if you use something else).
+
+The **Widgets** tab configures `desktop-widgets` (below). It is loaded only
+while open, and reaches the clocks through the `wallpaper-picker/dw`
+symlink (Quickshell refuses imports from outside the config folder), so
+keep both folders side by side in `~/.config/quickshell/`.
+
+## desktop-widgets (always on, autostarted by `hypr-user.lua`)
+
+One clock on the desktop (`WlrLayer.Bottom`, click-through), drawn on the
+GPU and updated once per minute:
+
+- **analog** — floating numerals (arabic/roman), optional seconds hand.
+- **sunmoon** — sun/moon by real solar elevation (or a day arc), sunrise,
+  sunset and moon phase; computed offline (NOAA algorithm).
+- **earth** — a GLSL globe centred on your city with the real day/night
+  line, city lights, sun and moon orbiting in their real directions; spins
+  while hovered. Textures: NASA (public domain, see `assets/CREDITS.md`).
+
+Settings: `defaults.json` holds every option; `~/.config/quickshell/desktop-widgets/config.json`
+(optional) holds only what you change — normally written by the Widgets
+tab, watched and applied live. Set `location` to your city's latitude and
+longitude. To rebuild the shader: `qsb --glsl "100es,120,150" --hlsl 50
+--msl 12 -o shaders/earth.frag.qsb shaders/earth.frag`.
 
 ## keybinds-viewer (`Super + H`)
 
