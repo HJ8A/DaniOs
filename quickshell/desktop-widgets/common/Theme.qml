@@ -11,6 +11,7 @@ QtObject {
     property color primary:          "#c6c6c6"
     property color secondary:        "#9e9e9e"
     property color tertiary:         "#f6f6f6"
+    property color inversePrimary:   "#5d5d5d"
     property color textColor:        "#e6e6e6"
     property color textVariant: "#ababab"
     property color surface:          "#0e0e0e"
@@ -37,6 +38,7 @@ QtObject {
                 theme.primary          = theme.hex(c.primary, theme.primary)
                 theme.secondary        = theme.hex(c.secondary, theme.secondary)
                 theme.tertiary         = theme.hex(c.tertiary, theme.tertiary)
+                theme.inversePrimary   = theme.hex(c.inversePrimary, theme.inversePrimary)
                 theme.textColor        = theme.hex(c.onSurface, theme.textColor)
                 theme.textVariant      = theme.hex(c.onSurfaceVariant, theme.textVariant)
                 theme.surface          = theme.hex(c.surface, theme.surface)

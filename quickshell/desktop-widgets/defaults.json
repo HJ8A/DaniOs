@@ -74,5 +74,56 @@
         "name": "Lima",
         "latitude": -12.05,
         "longitude": -77.04
+    },
+    "player": {
+        "enabled": true,
+        "style": "card",
+        "position": "bottom-left",
+        "marginX": 40,
+        "marginY": 90,
+        "width": 380,
+        "radius": 22,
+        "opacity": 0.85,
+        "background": "art",
+        "font": "",
+        "preferred": "",
+        "hideAfterPaused": 300,
+        "showPlayerName": true,
+        "showProgress": true,
+        "showVolume": true,
+        "vinyl": {
+            "spin": true,
+            "rpm": 33.3,
+            "sleeve": true,
+            "tonearm": true,
+            "armAngle": 27,
+            "fps": 30
+        },
+        "colors": {
+            "text": "auto",
+            "subtext": "auto",
+            "accent": "auto"
+        },
+        "cava": {
+            "enabled": true,
+            "mode": "bottom",
+            "shape": "bars",
+            "stereo": true,
+            "bars": 32,
+            "thickness": 0.85,
+            "rounded": true,
+            "height": 0.35,
+            "circleReach": 26,
+            "opacity": 0.7,
+            "framerate": 30,
+            "sensitivity": 100,
+            "smoothing": 77,
+            "colorMode": "gradient",
+            "colors": {
+                "a": "auto",
+                "b": "auto"
+            },
+            "autoHide": true
+        }
     }
 }

@@ -59,6 +59,13 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("sleep 3 && pactl set-default-sink alsa_output.pci-0000_00_1f.3.analog-stereo")
 end)
 
+-- Desktop widgets (quickshell/desktop-widgets): frosted-glass cava bars on the
+-- screen edges (they replace Caelestia's background visualiser) and the glass
+-- pill of the vinyl player. ignore_alpha = blur only where the surface is
+-- (almost) opaque, not behind soft shadows.
+hl.layer_rule({ match = { namespace = "desktop-widgets-viz" }, blur = true, ignore_alpha = 0.15 })
+hl.layer_rule({ match = { namespace = "desktop-widgets-player" }, blur = true, ignore_alpha = 0.35 })
+
 -- Window rules
 hl.window_rule({
     match  = { class = "thunar" },

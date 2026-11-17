@@ -73,6 +73,29 @@ tab, watched and applied live. Set `location` to your city's latitude and
 longitude. To rebuild the shader: `qsb --glsl "100es,120,150" --hlsl 50
 --msl 12 -o shaders/earth.frag.qsb shaders/earth.frag`.
 
+### Music player + cava
+
+Shown only while something is playing (MPRIS: Spotify, YouTube/YouTube Music in
+the browser, VLC, mpv… — no accounts or APIs), bottom-left by default:
+
+- **card** — cover, title, artist, progress (click = seek), ⏮ ⏯ ⏭, the
+  *app's* own volume (PipeWire stream; mouse wheel too) and player switcher.
+- **vinyl** — the cover is the sleeve with ⏮ ⏯ ⏭ on it; while playing the
+  record slides out, spins (only the label turns, at 30 steps/s) and the
+  tonearm drops; below, a small frosted-glass pill with title, progress and
+  volume.
+- **cava** (separate `cava` process, stereo) drawn entirely on the GPU
+  (`shaders/spectrum.frag`): bars / wave / dots on the bottom (or top and
+  bottom) screen edge — replacing Caelestia's background visualiser, so set
+  `background.visualiser.enabled = false` — or around the card / record.
+  It only runs while music plays and the desktop is visible (hidden behind
+  tiled windows), ~5 % CPU while playing, 0 % paused.
+
+Needs `cava`, the *Material Symbols Rounded* and *Rubik* fonts, and the
+`desktop-widgets-*` layer rules from `../caelestia/hypr-user.lua`. Keep the
+player's bottom margin ≥ 90 px: on an empty desktop Caelestia grabs the mouse
+in an ~87 px band along every screen edge (drag-to-open panels).
+
 ## keybinds-viewer (`Super + H`)
 
 A live cheatsheet of your keybinds, grouped by category, with a search box.

@@ -11,6 +11,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.Mpris
 import "dw/common" as DW
 import "dw/widgets" as DWW
 
@@ -40,13 +41,18 @@ Item {
     // ── Datos ────────────────────────────────────────────────────────────────
     // Carpeta de desktop-widgets (se puede cambiar para pruebas)
     property string dir: Quickshell.env("HOME") + "/.config/quickshell/desktop-widgets/"
-    property var defaults: ({ clock: { analog: {}, sunmoon: {}, earth: {} }, location: {} })
+    property var defaults: ({ clock: { analog: {}, sunmoon: {}, earth: {} }, player: { cava: { colors: {} }, colors: {}, vinyl: {} }, location: {} })
     property var user: ({})
     readonly property var cfg: merge(defaults, user)
     // true cuando defaults.json ya se leyó (antes no se crean las vistas previas)
     readonly property bool ready: defaults.location.latitude !== undefined
     readonly property string style: cfg.clock.style || "analog"
     readonly property var styleOpts: cfg.clock[style] || ({})
+    readonly property var pl: cfg.player || ({})
+    readonly property var cv: pl.cava || ({})
+
+    // Sección visible: "clock" | "player"
+    property string section: "clock"
 
     function isObj(v) { return v !== null && typeof v === "object" && !Array.isArray(v) }
 
@@ -138,6 +144,12 @@ Item {
     }
 
     DW.Theme { id: previewTheme }
+
+    function resetPlayer() {
+        const next = JSON.parse(JSON.stringify(user))
+        delete next.player
+        save(next)
+    }
 
     // ── Controles (en línea: todo llega por propiedades) ─────────────────────
     component Chip: Rectangle {
@@ -416,13 +428,26 @@ Item {
     Flickable {
         id: scroller
         anchors.fill: parent
-        contentHeight: content.implicitHeight
+        contentHeight: page.implicitHeight
         clip: true
         boundsBehavior: Flickable.StopAtBounds
 
+      ColumnLayout {
+        id: page
+        width: scroller.width - 10
+        spacing: 16
+
+        // Sección: reloj o reproductor
+        RowLayout {
+            spacing: 8
+            Chip { pal: tab.pal; label: "🕒  Reloj"; active: tab.section === "clock"; onActivated: tab.section = "clock" }
+            Chip { pal: tab.pal; label: "♫  Reproductor"; active: tab.section === "player"; onActivated: tab.section = "player" }
+        }
+
         ColumnLayout {
             id: content
-            width: scroller.width - 10
+            visible: tab.section === "clock"
+            Layout.fillWidth: true
             spacing: 16
 
             // Encabezado
@@ -729,8 +754,315 @@ Item {
                 }
             }
 
-            Item { Layout.preferredHeight: 8 }
         }
+
+        // ══ Reproductor ══════════════════════════════════════════════════════
+        ColumnLayout {
+            visible: tab.section === "player"
+            Layout.fillWidth: true
+            spacing: 16
+
+            RowLayout {
+                Layout.fillWidth: true
+                SectionTitle { pal: tab.pal; text: "WIDGETS · REPRODUCTOR" }
+                Item { Layout.fillWidth: true }
+                Toggle {
+                    pal: tab.pal
+                    label: "Mostrar reproductor"
+                    checked: tab.pl.enabled !== false
+                    onToggled: v => tab.set("player.enabled", v)
+                }
+                Chip { pal: tab.pal; label: "↺ Restablecer"; onActivated: tab.resetPlayer() }
+            }
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "Aparece solo cuando hay música (Spotify, YouTube en el navegador…). Rueda del mouse sobre la tarjeta = volumen de esa app; clic en el nombre del reproductor = cambiar de reproductor."
+                font.pixelSize: 11
+                color: tab.cTextV
+            }
+
+            SectionTitle { pal: tab.pal; text: "ESTILO" }
+            RowLayout {
+                spacing: 8
+                Chip { pal: tab.pal; label: "▭  Tarjeta"; active: (tab.pl.style || "card") === "card"; onActivated: tab.set("player.style", "card") }
+                Chip { pal: tab.pal; label: "◉  Vinilo"; active: tab.pl.style === "vinyl"; onActivated: tab.set("player.style", "vinyl") }
+            }
+            ColumnLayout {
+                visible: tab.pl.style === "vinyl"
+                Layout.fillWidth: true
+                spacing: 12
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 16
+                    Toggle { pal: tab.pal; label: "Girar el disco"; checked: (tab.pl.vinyl || {}).spin !== false; onToggled: v => tab.set("player.vinyl.spin", v) }
+                    Toggle { pal: tab.pal; label: "Funda (portada)"; checked: (tab.pl.vinyl || {}).sleeve !== false; onToggled: v => tab.set("player.vinyl.sleeve", v) }
+                    Toggle { pal: tab.pal; label: "Brazo"; checked: (tab.pl.vinyl || {}).tonearm !== false; onToggled: v => tab.set("player.vinyl.tonearm", v) }
+                }
+                RowLayout {
+                    spacing: 8
+                    Text { text: "Velocidad"; font.pixelSize: 12; color: tab.cText; Layout.preferredWidth: 70 }
+                    Chip { pal: tab.pal; label: "33 rpm"; active: Math.round((tab.pl.vinyl || {}).rpm || 33.3) === 33; onActivated: tab.set("player.vinyl.rpm", 33.3) }
+                    Chip { pal: tab.pal; label: "45 rpm"; active: Math.round((tab.pl.vinyl || {}).rpm || 33.3) === 45; onActivated: tab.set("player.vinyl.rpm", 45) }
+                    Item { width: 16 }
+                    Text { text: "Fluidez del giro"; font.pixelSize: 12; color: tab.cText }
+                    Repeater {
+                        model: [{ l: "20 fps (ahorro)", v: 20 }, { l: "30 fps", v: 30 }, { l: "60 fps", v: 60 }]
+                        Chip {
+                            required property var modelData
+                            pal: tab.pal; label: modelData.l
+                            active: ((tab.pl.vinyl || {}).fps || 30) === modelData.v
+                            onActivated: tab.set("player.vinyl.fps", modelData.v)
+                        }
+                    }
+                }
+            }
+
+            SectionTitle { pal: tab.pal; text: "GENERAL" }
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 2
+                columnSpacing: 24
+                rowSpacing: 12
+
+                RowLayout {
+                    spacing: 8
+                    Text { text: "Posición"; font.pixelSize: 12; color: tab.cText; Layout.preferredWidth: 70 }
+                    Chip { pal: tab.pal; label: "Izquierda"; active: tab.pl.position !== "bottom-right"; onActivated: tab.set("player.position", "bottom-left") }
+                    Chip { pal: tab.pal; label: "Derecha"; active: tab.pl.position === "bottom-right"; onActivated: tab.set("player.position", "bottom-right") }
+                }
+                RowLayout {
+                    spacing: 8
+                    Text { text: "Fondo"; font.pixelSize: 12; color: tab.cText; Layout.preferredWidth: 70 }
+                    Chip { pal: tab.pal; label: "Portada"; active: tab.pl.background !== "solid"; onActivated: tab.set("player.background", "art") }
+                    Chip { pal: tab.pal; label: "Liso"; active: tab.pl.background === "solid"; onActivated: tab.set("player.background", "solid") }
+                }
+                Slider {
+                    Layout.fillWidth: true
+                    pal: tab.pal; label: "Ancho"
+                    value: tab.pl.width || 380
+                    from: 300; to: 520; step: 10; decimals: 0; suffix: " px"
+                    onCommitted: v => tab.set("player.width", v)
+                }
+                Slider {
+                    Layout.fillWidth: true
+                    pal: tab.pal; label: "Separación del borde inferior (menos de 80 px: Caelestia tapa los botones con el escritorio vacío)"
+                    value: tab.pl.marginY ?? 90
+                    from: 20; to: 300; step: 5; decimals: 0; suffix: " px"
+                    onCommitted: v => tab.set("player.marginY", v)
+                }
+                Slider {
+                    Layout.fillWidth: true
+                    pal: tab.pal; label: "Separación del borde lateral"
+                    value: tab.pl.marginX ?? 40
+                    from: 0; to: 300; step: 5; decimals: 0; suffix: " px"
+                    onCommitted: v => tab.set("player.marginX", v)
+                }
+                Slider {
+                    Layout.fillWidth: true
+                    pal: tab.pal; label: "Opacidad del fondo"
+                    value: tab.pl.opacity ?? 0.85
+                    from: 0.3; to: 1; step: 0.05; decimals: 2
+                    onCommitted: v => tab.set("player.opacity", Math.round(v * 100) / 100)
+                }
+                RowLayout {
+                    spacing: 8
+                    Text { text: "En pausa"; font.pixelSize: 12; color: tab.cText; Layout.preferredWidth: 70 }
+                    Repeater {
+                        model: [{ l: "Ocultar ya", v: 0 }, { l: "1 min", v: 60 }, { l: "5 min", v: 300 }, { l: "Nunca", v: -1 }]
+                        Chip {
+                            required property var modelData
+                            pal: tab.pal; label: modelData.l
+                            active: (tab.pl.hideAfterPaused ?? 300) === modelData.v
+                            onActivated: tab.set("player.hideAfterPaused", modelData.v)
+                        }
+                    }
+                }
+                Flow {
+                    spacing: 16
+                    Toggle { pal: tab.pal; label: "Reproductor"; checked: tab.pl.showPlayerName !== false; onToggled: v => tab.set("player.showPlayerName", v) }
+                    Toggle { pal: tab.pal; label: "Progreso"; checked: tab.pl.showProgress !== false; onToggled: v => tab.set("player.showProgress", v) }
+                    Toggle { pal: tab.pal; label: "Volumen"; checked: tab.pl.showVolume !== false; onToggled: v => tab.set("player.showVolume", v) }
+                }
+            }
+
+            // Reproductor preferido (cuando suenan varios a la vez)
+            RowLayout {
+                spacing: 8
+                Text { text: "Preferido"; font.pixelSize: 12; color: tab.cText; Layout.preferredWidth: 70 }
+                Chip { pal: tab.pal; label: "Automático"; active: !tab.pl.preferred; onActivated: tab.set("player.preferred", "") }
+                Repeater {
+                    // reproductores abiertos ahora (sin duplicados ni vacíos) + el guardado
+                    model: {
+                        const names = Mpris.players.values.filter(p => (p.trackTitle ?? "") !== "").map(p => p.identity)
+                        if (tab.pl.preferred) names.push(tab.pl.preferred)
+                        return [...new Set(names)]
+                    }
+                    Chip {
+                        required property var modelData
+                        pal: tab.pal; label: modelData
+                        active: tab.pl.preferred === modelData
+                        onActivated: tab.set("player.preferred", modelData)
+                    }
+                }
+            }
+
+            // cava
+            RowLayout {
+                Layout.fillWidth: true
+                SectionTitle { pal: tab.pal; text: "VISUALIZADOR (CAVA)" }
+                Item { Layout.fillWidth: true }
+                Toggle { pal: tab.pal; label: "Activar"; checked: tab.cv.enabled !== false; onToggled: v => tab.set("player.cava.enabled", v) }
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 12
+                enabled: tab.cv.enabled !== false
+                opacity: enabled ? 1 : 0.4
+
+                RowLayout {
+                    spacing: 8
+                    Text { text: "Modo"; font.pixelSize: 12; color: tab.cText; Layout.preferredWidth: 70 }
+                    Chip { pal: tab.pal; label: "Abajo de la pantalla"; active: (tab.cv.mode || "bottom") === "bottom"; onActivated: tab.set("player.cava.mode", "bottom") }
+                    Chip { pal: tab.pal; label: "Arriba y abajo"; active: tab.cv.mode === "mirror"; onActivated: tab.set("player.cava.mode", "mirror") }
+                    Chip { pal: tab.pal; label: tab.pl.style === "vinyl" ? "Alrededor del disco" : "Contorno del reproductor"; active: tab.cv.mode === "circle"; onActivated: tab.set("player.cava.mode", "circle") }
+                }
+                RowLayout {
+                    spacing: 8
+                    Text { text: "Forma"; font.pixelSize: 12; color: tab.cText; Layout.preferredWidth: 70 }
+                    Chip { pal: tab.pal; label: "Barras"; active: (tab.cv.shape || "bars") === "bars"; onActivated: tab.set("player.cava.shape", "bars") }
+                    Chip { pal: tab.pal; label: "Onda"; active: tab.cv.shape === "wave"; onActivated: tab.set("player.cava.shape", "wave") }
+                    Chip { pal: tab.pal; label: "Puntos"; active: tab.cv.shape === "dots"; onActivated: tab.set("player.cava.shape", "dots") }
+                    Item { width: 16 }
+                    Toggle { pal: tab.pal; label: "Estéreo"; checked: tab.cv.stereo !== false; onToggled: v => tab.set("player.cava.stereo", v) }
+                    Toggle { pal: tab.pal; label: "Redondeadas"; checked: tab.cv.rounded !== false; onToggled: v => tab.set("player.cava.rounded", v) }
+                }
+                Toggle {
+                    visible: tab.cv.mode !== "circle"
+                    pal: tab.pal
+                    label: "Ocultar cuando hay ventanas (no dibuja ni calcula detrás de ellas)"
+                    checked: tab.cv.autoHide !== false
+                    onToggled: v => tab.set("player.cava.autoHide", v)
+                }
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 2
+                    columnSpacing: 24
+                    rowSpacing: 12
+                    Slider {
+                        Layout.fillWidth: true
+                        pal: tab.pal; label: "Número de barras"
+                        value: tab.cv.bars || 32
+                        from: 8; to: 64; step: 2; decimals: 0
+                        onCommitted: v => tab.set("player.cava.bars", v)
+                    }
+                    Slider {
+                        Layout.fillWidth: true
+                        pal: tab.pal; label: "Grosor"
+                        value: tab.cv.thickness || 0.85
+                        from: 0.2; to: 1; step: 0.05; decimals: 2
+                        onCommitted: v => tab.set("player.cava.thickness", Math.round(v * 100) / 100)
+                    }
+                    Slider {
+                        Layout.fillWidth: true
+                        visible: tab.cv.mode !== "circle"
+                        pal: tab.pal; label: "Altura (parte de la pantalla)"
+                        value: tab.cv.height || 0.35
+                        from: 0.1; to: 0.6; step: 0.05; decimals: 2
+                        onCommitted: v => tab.set("player.cava.height", Math.round(v * 100) / 100)
+                    }
+                    Slider {
+                        Layout.fillWidth: true
+                        visible: tab.cv.mode === "circle"
+                        pal: tab.pal; label: "Alcance alrededor"
+                        value: tab.cv.circleReach || 26
+                        from: 10; to: 60; step: 2; decimals: 0; suffix: " px"
+                        onCommitted: v => tab.set("player.cava.circleReach", v)
+                    }
+                    Slider {
+                        Layout.fillWidth: true
+                        pal: tab.pal; label: "Opacidad"
+                        value: tab.cv.opacity || 0.7
+                        from: 0.1; to: 1; step: 0.05; decimals: 2
+                        onCommitted: v => tab.set("player.cava.opacity", Math.round(v * 100) / 100)
+                    }
+                    Slider {
+                        Layout.fillWidth: true
+                        pal: tab.pal; label: "Sensibilidad"
+                        value: tab.cv.sensitivity || 100
+                        from: 40; to: 250; step: 10; decimals: 0; suffix: " %"
+                        onCommitted: v => tab.set("player.cava.sensitivity", v)
+                    }
+                    Slider {
+                        Layout.fillWidth: true
+                        pal: tab.pal; label: "Suavizado"
+                        value: tab.cv.smoothing ?? 77
+                        from: 0; to: 100; step: 1; decimals: 0
+                        onCommitted: v => tab.set("player.cava.smoothing", v)
+                    }
+                    RowLayout {
+                        spacing: 8
+                        Text { text: "Fluidez"; font.pixelSize: 12; color: tab.cText; Layout.preferredWidth: 70 }
+                        Chip { pal: tab.pal; label: "30 fps (ahorro)"; active: (tab.cv.framerate || 30) === 30; onActivated: tab.set("player.cava.framerate", 30) }
+                        Chip { pal: tab.pal; label: "60 fps"; active: tab.cv.framerate === 60; onActivated: tab.set("player.cava.framerate", 60) }
+                    }
+                }
+
+                RowLayout {
+                    spacing: 8
+                    Text { text: "Color"; font.pixelSize: 12; color: tab.cText; Layout.preferredWidth: 70 }
+                    Chip { pal: tab.pal; label: "De la portada"; active: tab.cv.colorMode === "art"; onActivated: tab.set("player.cava.colorMode", "art") }
+                    Chip { pal: tab.pal; label: "Un color"; active: tab.cv.colorMode === "auto"; onActivated: tab.set("player.cava.colorMode", "auto") }
+                    Chip { pal: tab.pal; label: "Degradado"; active: (tab.cv.colorMode || "gradient") === "gradient"; onActivated: tab.set("player.cava.colorMode", "gradient") }
+                }
+                ColorPicker {
+                    visible: tab.cv.colorMode !== "art"
+                    pal: tab.pal
+                    label: tab.cv.colorMode !== "gradient" ? "Color" : tab.cv.mode === "circle" ? "Color del centro" : "Color de la base"
+                    value: (tab.cv.colors || {}).a || "auto"
+                    scheme: [previewTheme.primary, previewTheme.secondary, previewTheme.tertiary,
+                             previewTheme.textColor, previewTheme.textVariant, "#ffffff", "#000000"]
+                    onPicked: v => tab.set("player.cava.colors.a", v)
+                }
+                ColorPicker {
+                    visible: (tab.cv.colorMode || "gradient") === "gradient"
+                    pal: tab.pal
+                    label: tab.cv.mode === "circle" ? "Color de los lados" : "Color de la punta"
+                    value: (tab.cv.colors || {}).b || "auto"
+                    scheme: [previewTheme.primary, previewTheme.secondary, previewTheme.tertiary,
+                             previewTheme.textColor, previewTheme.textVariant, "#ffffff", "#000000"]
+                    onPicked: v => tab.set("player.cava.colors.b", v)
+                }
+            }
+
+            SectionTitle { pal: tab.pal; text: "COLORES DE LA TARJETA" }
+            Column {
+                Layout.fillWidth: true
+                spacing: 8
+                Repeater {
+                    model: [{ key: "accent", name: "Acento (botón, progreso)" }, { key: "text", name: "Título" }, { key: "subtext", name: "Artista y tiempos" }]
+                    ColorPicker {
+                        required property var modelData
+                        pal: tab.pal
+                        label: modelData.name
+                        value: (tab.pl.colors || {})[modelData.key] || "auto"
+                        scheme: [previewTheme.primary, previewTheme.secondary, previewTheme.tertiary,
+                                 previewTheme.textColor, previewTheme.textVariant, "#ffffff", "#000000"]
+                        onPicked: v => tab.set("player.colors." + modelData.key, v)
+                    }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "Acento en Auto = color de la portada de cada canción. Las barras van en los bordes de la pantalla (reemplazan al visualizador de Caelestia) o alrededor del reproductor; dentro de la tarjeta no hay barras. cava solo corre mientras suena música y se ve (0 % en pausa o con ventanas)."
+                font.pixelSize: 11
+                color: tab.cTextV
+            }
+        }
+
+        Item { Layout.preferredHeight: 8 }
+      }
     }
 
     // ── Vistas previas (mismos componentes que el escritorio) ────────────────
