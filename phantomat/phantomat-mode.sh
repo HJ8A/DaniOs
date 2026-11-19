@@ -3,6 +3,7 @@
 #
 #   phantomat-mode.sh infinite   hide bar + border, open the canvas
 #   phantomat-mode.sh caelestia  close the canvas (windows re-tile), restore bar + border
+#   phantomat-mode.sh ungroup|regroup  by hand: record + break up window groups / rebuild them
 #   phantomat-mode.sh restore    login safety net: restore bar + border if a
 #                                previous session ended while in Infinite mode
 #
@@ -100,6 +101,21 @@ os.replace(tmp, shell_json)
 PY
 }
 
+# The bar also takes room when it's open on the screen (Super+F in Caelestia
+# mode toggles it, or a drag from the left edge), whatever bar.persistent says.
+# Infinite mode closes it and remembers; Caelestia mode opens it again.
+bar_open="$state_dir/bar-open"
+bar() {
+  local open
+  open=$(qs -c caelestia ipc call drawers isOpen bar 2>/dev/null || true)
+  if [[ $1 == close && $open == 1 ]]; then
+    caelestia shell drawers toggle bar >/dev/null 2>&1 && touch "$bar_open"
+  elif [[ $1 == reopen && -e $bar_open ]]; then
+    [[ $open == 1 ]] || caelestia shell drawers toggle bar >/dev/null 2>&1 || true
+    rm -f "$bar_open"
+  fi
+}
+
 overview() { hyprctl dispatch "hl.plugin.spatialoverview.overview(\"$1 all\")" >/dev/null; }
 
 # Special workspaces (music, todo, ...) don't work on the canvas. In Infinite
@@ -125,6 +141,31 @@ def load():
         return json.load(open(path))
     except (OSError, ValueError):
         return {}
+
+# Window groups (tabs) don't work on the canvas: a group lands there as one
+# pile of identical windows and the plugin crashes Hyprland on the way out.
+# Entering Infinite mode records every group and breaks it up (still tiled, so
+# it's safe); back in Caelestia mode the members still alive are grouped again.
+groups_path = os.path.join(os.path.dirname(path), "groups.json")
+# Windows of special workspaces that were floating before Infinite mode: the
+# canvas floats everything, so on the way back the rest are tiled again.
+floats_path = os.path.join(os.path.dirname(path), "floating.json")
+
+def clients_now():
+    return {c["address"]: c for c in json.loads(hypr("clients", "-j"))}
+
+def directions(src, dst):
+    """Directions to try from src towards dst, most likely first."""
+    (sx, sy), (sw, sh) = src["at"], src["size"]
+    (dx, dy), (dw, dh) = dst["at"], dst["size"]
+    vx, vy = (dx + dw / 2) - (sx + sw / 2), (dy + dh / 2) - (sy + sh / 2)
+    h = "right" if vx > 0 else "left"
+    v = "down" if vy > 0 else "up"
+    first = [h, v] if abs(vx) >= abs(vy) else [v, h]
+    return first + [d for d in ("left", "right", "up", "down") if d not in first]
+
+def out_of_group(addr):
+    dispatch(f'hl.dsp.window.move({{ out_of_group = true, window = "address:{addr}" }})')
 
 def save(rec):
     if rec:
@@ -183,12 +224,16 @@ def place_in_ring(addr):
             return
 
 if action == "out":
+    floating = []
     for c in clients:
         ws = c["workspace"]["name"]
         if ws.startswith("special:"):
             rec[c["address"]] = ws
+            if c["floating"]:
+                floating.append(c["address"])
             move(c["address"], active)
     save(rec)
+    json.dump(floating, open(floats_path, "w"))
     # A special left on screen would catch the next new window (it would open
     # there instead of on the canvas): close it.
     for m in json.loads(hypr("monitors", "-j")):
@@ -196,10 +241,73 @@ if action == "out":
         if name.startswith("special:"):
             dispatch(f'hl.dsp.workspace.toggle_special("{name[8:]}")')
 elif action == "back":
+    try:
+        floating = set(json.load(open(floats_path)))
+    except (OSError, ValueError):
+        floating = set()
     for addr, ws in rec.items():
         if addr in alive:
             move(addr, ws)
+            if addr not in floating and alive[addr]["floating"]:
+                dispatch(f'hl.dsp.window.float({{ action = "off", window = "address:{addr}" }})')
     save({})
+    if os.path.exists(floats_path):
+        os.remove(floats_path)
+elif action == "ungroup":
+    groups, seen = [], set()
+    for c in clients:
+        members = c.get("grouped") or []
+        if len(members) > 1 and members[0] not in seen:
+            seen.update(members)
+            groups.append(members)  # tab order, as Hyprland lists it
+    if groups:
+        json.dump(groups, open(groups_path, "w"))
+        was_focused = json.loads(hypr("activewindow", "-j") or "{}").get("address")
+        for members in groups:
+            for addr in members:
+                out_of_group(addr)
+        if was_focused:  # taking a window out of a group focuses it: give focus back
+            dispatch(f'hl.dsp.focus({{ window = "address:{was_focused}" }})')
+elif action == "regroup":
+    try:
+        groups = json.load(open(groups_path))
+    except (OSError, ValueError):
+        groups = []
+    # into_group only moves the focused window: focus each member in turn, then
+    # give focus back and close any special workspace that opened on the way.
+    was_focused = json.loads(hypr("activewindow", "-j") or "{}").get("address")
+    was_special = {m["name"]: (m.get("specialWorkspace") or {}).get("name", "") for m in json.loads(hypr("monitors", "-j"))}
+    for members in groups:
+        now = clients_now()
+        by_ws = {}
+        for addr in members:  # closed windows drop out; the rest regroup per workspace
+            if addr in now and not now[addr].get("grouped"):
+                by_ws.setdefault(now[addr]["workspace"]["name"], []).append(addr)
+        for ws, alive in by_ws.items():
+            if len(alive) < 2:
+                continue
+            lead = alive[0]
+            dispatch(f'hl.dsp.group.toggle({{ window = "address:{lead}" }})')
+            if lead not in (clients_now()[lead].get("grouped") or []):
+                continue  # couldn't start the group: leave them as separate windows
+            for addr in alive[1:]:
+                dispatch(f'hl.dsp.focus({{ window = "address:{addr}" }})')
+                for d in directions(clients_now()[addr], clients_now()[lead]):
+                    dispatch(f'hl.dsp.window.move({{ into_group = "{d}" }})')
+                    joined = clients_now()[addr].get("grouped") or []
+                    if lead in joined:
+                        break
+                    if joined:  # landed in some other group: take it back out
+                        out_of_group(addr)
+    if groups:
+        if was_focused and was_focused in clients_now():
+            dispatch(f'hl.dsp.focus({{ window = "address:{was_focused}" }})')
+        for m in json.loads(hypr("monitors", "-j")):
+            name = (m.get("specialWorkspace") or {}).get("name", "")
+            if name.startswith("special:") and name != was_special.get(m["name"], ""):
+                dispatch(f'hl.dsp.workspace.toggle_special("{name[8:]}")')
+    if os.path.exists(groups_path):
+        os.remove(groups_path)
 elif action == "adopt":
     addr, ws = args
     rec[addr] = ws
@@ -213,8 +321,10 @@ PY
 
 case "${1:-}" in
 infinite)
+  specials ungroup # groups can't live on the canvas: record and break them up while still tiled
   specials out # before the canvas opens, so they join it as normal windows
   chrome hide
+  bar close
   sleep 0.6 # let Caelestia apply the new reserved area before the canvas measures the screen
   overview on
   notify "Modo Infinito" "Super+Ctrl+G mapa · Super+Ctrl+I volver"
@@ -222,8 +332,15 @@ infinite)
 caelestia)
   overview off
   specials back
+  sleep 0.4 # let the windows re-tile before grouping them by position
+  specials regroup # the groups recorded on the way in, with the members still open
   chrome show
+  bar reopen
   notify "Modo Caelestia" "Mosaico y workspaces"
+  ;;
+ungroup|regroup)
+  # by hand: break up / rebuild the recorded window groups (normally done by infinite / caelestia)
+  specials "$1"
   ;;
 adopt)
   # A window that opened in a special workspace (window rule) while in
@@ -236,10 +353,10 @@ chrome)
   ;;
 restore)
   chrome show
-  rm -f "$specials_file" # the windows it listed died with the old session
+  rm -f "$specials_file" "$state_dir/groups.json" "$state_dir/floating.json" "$bar_open" # they described the old session
   ;;
 *)
-  echo "usage: $0 infinite|caelestia|adopt <address> <workspace>|restore" >&2
+  echo "usage: $0 infinite|caelestia|ungroup|regroup|adopt <address> <workspace>|restore" >&2
   exit 2
   ;;
 esac
