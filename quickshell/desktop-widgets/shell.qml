@@ -141,6 +141,18 @@ ShellRoot {
             return true
         return ws.toplevels.values.every(t => t.lastIpcObject?.floating === true)
     }
+    // Quickshell no actualiza solo `lastIpcObject` de las ventanas: una
+    // ventana abierta después de arrancar (p. ej. Capri, fijada en todos los
+    // workspaces) quedaba sin `floating` y contaba como "en mosaico", así que
+    // las barras no volvían a salir nunca. Se refresca en cada cambio.
+    Connections {
+        target: Hyprland
+        function onRawEvent(event) {
+            if (["openwindow", "closewindow", "movewindow", "movewindowv2", "changefloatingmode", "pin"].includes(event.name))
+                Hyprland.refreshToplevels()
+        }
+    }
+
     readonly property bool edgesVisibleSomewhere: Quickshell.screens.some(s => root.desktopFree(s))
 
     readonly property color artColor: mediaSvc.artColor.a > 0 ? mediaSvc.artColor : appTheme.primary
