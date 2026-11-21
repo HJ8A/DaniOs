@@ -1,5 +1,11 @@
 {
     "preferred": "Spotify",
+    "players": {
+        "allowed": [
+            "Spotify",
+            "YouTube Music"
+        ]
+    },
     "video": {
         "enabled": true,
         "maxHeight": 1080,
@@ -17,5 +23,8 @@
         "reach": 0.11,
         "bars": 48,
         "framerate": 30
+    },
+    "lyrics": {
+        "visible": false
     }
 }

@@ -113,6 +113,18 @@ for full screen); Spotify stays hidden in `special:spotify` as the audio engine.
   while hidden. Sync: one seek on load, then ±10 % playback-rate nudges.
   Letterbox/pillarbox bars are detected once per video (`ffmpeg cropdetect`
   on key frames) and cropped. Cache: `~/.cache/danios-music/videos.json`.
+- **Search** (click the centre card or `Ctrl+K`): Zen-style glass bar; results
+  with covers grouped as Artists / Songs / Albums / Playlists, from Spotify's
+  own internal search (`searchModalResults`; the Web API answers 429 from
+  inside the client). Click/Enter plays; a "+" on the selected song adds it to
+  the queue.
+- **Lyrics** ("Letras" button under the card): synced lyrics in a panel on the
+  right (current line highlighted, smooth scroll, click a line to seek).
+  Source: Spotify's own lyrics through the extension, then **LRCLIB**
+  (lrclib.net, public) — only fetched while the panel is open, cached in
+  `~/.cache/danios-music/lyrics/`.
+- **Players:** only Spotify and the YouTube Music desktop app
+  (`players.allowed`); browsers are ignored.
 - **Queue and playlists** come from the Spicetify extension
   `spicetify/danios-bridge.js` over a local WebSocket (127.0.0.1:47321):
   `cp spicetify/danios-bridge.js ~/.config/spicetify/Extensions/ &&

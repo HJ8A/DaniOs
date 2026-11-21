@@ -140,6 +140,73 @@
         send("tracks", { uri, items: items.filter(t => t && t.uri) })
     }
 
+    // ── Búsqueda ─────────────────────────────────────────────────────────────
+    // GraphQL interno de Spotify, "searchModalResults" (el buscador de Ctrl+K
+    // del propio cliente). Devuelve los resultados principales MEZCLADOS
+    // (topResultsV2.itemsV2, cada uno con su __typename); aquí se agrupan.
+    // Medido en Spotify 1.3.8: la Web API por CosmosAsync responde 429 y no
+    // existe "searchDesktop", por eso solo esta vía.
+    const names = arr => (arr || []).map(a => a?.profile?.name || a?.name).filter(Boolean).join(", ")
+    const img = sources => pickImage((sources || []).map(x => ({ url: x.url, width: x.width, height: x.height })))
+
+    async function search(query, id) {
+        const G = Spicetify.GraphQL
+        const def = G?.Definitions?.searchModalResults
+        if (!def)
+            return send("error", { what: "search", message: "GraphQL searchModalResults no disponible" })
+        const r = await G.Request(def, {
+            searchTerm: query, offset: 0, limit: 12, numberOfTopResults: 12, includeAudiobooks: false,
+            includeArtistHasConcertsField: false, includePreReleases: false, includeLocalConcertsField: false,
+            includeAuthors: false })
+        const out = { tracks: [], artists: [], albums: [], playlists: [] }
+        for (const it of r?.data?.searchV2?.topResultsV2?.itemsV2 || []) {
+            const d = it?.item?.data
+            if (!d || !d.uri)
+                continue
+            switch (d.__typename) {
+            case "Track":
+                out.tracks.push({ uri: d.uri, name: d.name || "", artist: names(d.artists?.items),
+                                  image: img(d.albumOfTrack?.coverArt?.sources),
+                                  duration: d.duration?.totalMilliseconds || 0 })
+                break
+            case "Artist":
+                out.artists.push({ uri: d.uri, name: d.profile?.name || "", image: img(d.visuals?.avatarImage?.sources) })
+                break
+            case "Album":
+                out.albums.push({ uri: d.uri, name: d.name || "", artist: names(d.artists?.items),
+                                  image: img(d.coverArt?.sources) })
+                break
+            case "Playlist":
+                out.playlists.push({ uri: d.uri, name: d.name || "", owner: d.ownerV2?.data?.name || "",
+                                     image: img(d.images?.items?.[0]?.sources) })
+                break
+            }
+        }
+        send("search", { id, query, via: "graphql", ...out })
+    }
+
+    // ── Letras (las de Spotify: spclient "color-lyrics", la misma que usa su
+    // vista de letras). Si no hay, DaniOS Music prueba LRCLIB por su cuenta.
+    async function getLyrics(uri) {
+        const id = String(uri || "").split(":").pop()
+        let lines = [], synced = false, source = "spotify", error = ""
+        try {
+            const r = await Spicetify.CosmosAsync.get(
+                `https://spclient.wg.spotify.com/color-lyrics/v2/track/${id}?format=json&vocalRemoval=false&market=from_token`)
+            const ly = r?.lyrics
+            if (ly?.lines?.length) {
+                synced = ly.syncType === "LINE_SYNCED"
+                lines = ly.lines.map(l => ({ t: Number(l.startTimeMs) || 0, text: String(l.words || "").replace(/♪/g, "").trim() }))
+                                 .filter(l => l.text !== "")
+            } else {
+                error = r?.code ? "código " + r.code : "sin letra"
+            }
+        } catch (e) {
+            error = String(e)
+        }
+        send("lyrics", { uri, synced, source, lines, error })
+    }
+
     // ── Órdenes de DaniOS Music ──────────────────────────────────────────────
     async function handle(msg) {
         switch (msg.cmd) {
@@ -158,6 +225,12 @@
                 return Spicetify.Player.playUri(context, {}, { skipTo: { uri: msg.uri } })
             return Spicetify.Player.playUri(msg.uri)
         }
+        case "search":
+            return search(String(msg.query || ""), msg.id)
+        case "getLyrics":
+            return getLyrics(msg.uri)
+        case "queueAdd":       // botón "+" del buscador
+            return Spicetify.addToQueue([{ uri: msg.uri }])
         case "skipTo":         // saltar a una canción de la cola
             return Spicetify.Platform.PlayerAPI.skipTo({ uri: msg.uri, uid: msg.uid })
         }
@@ -175,7 +248,10 @@
                     playlist: !!Spicetify.Platform.PlaylistAPI?.getContents,
                     library: !!Spicetify.Platform.LibraryAPI?.getTracks,
                     skipTo: !!Spicetify.Platform.PlayerAPI?.skipTo,
-                    playUri: !!Spicetify.Player.playUri
+                    playUri: !!Spicetify.Player.playUri,
+                    search: !!Spicetify.GraphQL?.Definitions?.searchModalResults,
+                    lyrics: !!Spicetify.CosmosAsync?.get,
+                    queueAdd: !!Spicetify.addToQueue
                 }
             })
             pushQueue(true)

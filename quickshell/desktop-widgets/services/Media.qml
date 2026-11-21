@@ -18,7 +18,18 @@ Item {
     property string preferred: ""       // identidad preferida ("Spotify", "Brave"…)
     property MprisPlayer manual: null
 
-    readonly property var players: Mpris.players.values.filter(p => (p.trackTitle ?? "") !== "")
+    // Plataformas permitidas (identidad MPRIS, sin distinguir mayúsculas).
+    // Vacía = todas. DaniOS Music la usa para quedarse con Spotify y YouTube
+    // Music y dejar fuera los navegadores.
+    property var allowed: []
+    function isAllowed(p) {
+        if (!allowed || allowed.length === 0)
+            return true
+        const id = (p.identity || "").toLowerCase()
+        return allowed.some(a => String(a).toLowerCase() === id)
+    }
+
+    readonly property var players: Mpris.players.values.filter(p => (p.trackTitle ?? "") !== "" && isAllowed(p))
 
     readonly property MprisPlayer active: {
         const list = players

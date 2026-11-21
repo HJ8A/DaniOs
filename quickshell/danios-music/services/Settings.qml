@@ -9,7 +9,7 @@ import Quickshell.Io
 Item {
     id: root
 
-    property var defaults: ({ video: {}, clock: {}, edges: {} })
+    property var defaults: ({ video: {}, clock: {}, edges: {}, players: {}, lyrics: {} })
     property var user: ({})
     readonly property var cfg: merge(defaults, user)
     readonly property bool ready: defaults.video.enabled !== undefined

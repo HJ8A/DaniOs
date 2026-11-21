@@ -1,5 +1,6 @@
 // Tarjeta de vidrio con la portada, el título y el artista. La portada
 // (AlbumArt de desktop-widgets) calcula además el color vivo de la canción.
+// Es clicable (abre el buscador): cursor de mano y crece un poco al pasar.
 import QtQuick
 import "../dw/common" as DW
 
@@ -15,6 +16,10 @@ Glass {
     readonly property var player: media ? media.active : null
     readonly property var vivid: cover.vivid       // color de la canción (o null)
     readonly property string artUrl: media ? media.artUrl(player) : ""
+    signal clicked()
+
+    scale: cardMa.pressed ? 0.98 : cardMa.containsMouse ? 1.035 : 1
+    Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
     radius: 26
     width: coverSize + 36
@@ -57,5 +62,13 @@ Glass {
         color: root.subColor
         font.family: root.fontFamily
         font.pixelSize: Math.round(root.coverSize * 0.065)
+    }
+
+    MouseArea {
+        id: cardMa
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.clicked()
     }
 }

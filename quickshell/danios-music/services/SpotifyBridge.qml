@@ -19,6 +19,12 @@ Item {
     property var  tracks: ({ uri: "", items: [] })
     property string lastError: ""
 
+    // Búsqueda: cada petición lleva un número; solo vale la respuesta de la
+    // última (si se escribe rápido, una respuesta lenta no pisa a otra nueva)
+    property int    searchSeq: 0
+    property bool   searching: false
+    property var    results: ({ query: "", tracks: [], artists: [], albums: [], playlists: [] })
+
     property var client: null
 
     function sendCmd(obj) {
@@ -34,6 +40,32 @@ Item {
     }
     function play(uri, context) { sendCmd({ cmd: "play", uri: uri, context: context || "" }) }
     function skipTo(track) { sendCmd({ cmd: "skipTo", uri: track.uri, uid: track.uid }) }
+    function queueAdd(uri) { sendCmd({ cmd: "queueAdd", uri: uri }) }
+
+    // Letras de Spotify para una canción: { uri, synced, lines: [{t (ms), text}], error }
+    property var lyrics: ({ uri: "", synced: false, lines: [], error: "" })
+    function getLyrics(uri) { sendCmd({ cmd: "getLyrics", uri: uri }) }
+    // Si se busca sin conexión (p. ej. justo al abrir, antes de que la
+    // extensión se reconecte), la búsqueda se envía al conectar
+    property string pendingQuery: ""
+    onConnectedChanged: if (connected && pendingQuery) search(pendingQuery)
+
+    function search(query) {
+        if (!client) {
+            pendingQuery = query
+            searching = query.trim() !== ""
+            return
+        }
+        pendingQuery = ""
+        searchSeq += 1
+        if (!query.trim()) {
+            searching = false
+            results = { query: "", tracks: [], artists: [], albums: [], playlists: [] }
+            return
+        }
+        searching = true
+        sendCmd({ cmd: "search", query: query.trim(), id: searchSeq })
+    }
 
     function handle(message) {
         let msg
@@ -53,7 +85,18 @@ Item {
         case "tracks":
             tracks = { uri: msg.uri, items: msg.items || [], loading: false }
             break
+        case "search":
+            if (msg.id !== searchSeq)          // respuesta vieja
+                break
+            searching = false
+            results = { query: msg.query, via: msg.via, tracks: msg.tracks || [], artists: msg.artists || [],
+                        albums: msg.albums || [], playlists: msg.playlists || [] }
+            break
+        case "lyrics":
+            lyrics = { uri: msg.uri, synced: !!msg.synced, source: msg.source, lines: msg.lines || [], error: msg.error || "" }
+            break
         case "error":
+            searching = false
             lastError = msg.what + ": " + msg.message
             console.warn("danios-music: puente:", lastError)
             break

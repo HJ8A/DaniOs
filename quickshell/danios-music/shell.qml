@@ -32,11 +32,14 @@ ShellRoot {
     DW.Theme { id: appTheme }
 
     // Cola y biblioteca de Spotify (extensión de Spicetify, fase 3)
-    SpotifyBridge { id: bridge }
+    // Id distinto del nombre de la propiedad de los componentes (`bridge`):
+    // `bridge: bridge` se resolvía a la propia propiedad y quedaba vacío.
+    SpotifyBridge { id: bridgeSvc }
 
     DWS.Media {
         id: mediaSvc
         preferred: root.opts.preferred || ""
+        allowed: (root.opts.players || {}).allowed || []
     }
 
     VideoResolver {
@@ -85,6 +88,15 @@ ShellRoot {
         Hyprland.refreshToplevels()
     }
 
+    // Letras (fase 4b): solo se buscan con el panel abierto y la ventana visible
+    readonly property bool lyricsOpen: (root.opts.lyrics || {}).visible === true
+    LyricsService {
+        id: lyricsSvc
+        player: mediaSvc.active
+        bridge: bridgeSvc
+        active: root.lyricsOpen && root.shown
+    }
+
     // Espectro para los bordes: solo mientras se ve la ventana y suena música
     DWS.Cava {
         id: cavaSvc
@@ -114,9 +126,19 @@ ShellRoot {
             Component.onCompleted: opacity = 1
             Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
 
+            // Buscador (fase 4a): Ctrl+K o clic en la tarjeta central
+            property bool searchOpen: false
+            function openSearch() { searchOpen = true }
+            function closeSearch() {
+                searchOpen = false
+                stage.forceActiveFocus()
+            }
+
             Keys.onPressed: event => {
                 const p = mediaSvc.active
-                if (event.key === Qt.Key_Q && (event.modifiers & Qt.ControlModifier))
+                if (event.key === Qt.Key_K && (event.modifiers & Qt.ControlModifier))
+                    stage.openSearch()
+                else if (event.key === Qt.Key_Q && (event.modifiers & Qt.ControlModifier))
                     Qt.quit()
                 else if (event.key === Qt.Key_Escape) {
                     // Ocultar = cerrar el especial donde está (en un workspace normal no hace nada)
@@ -161,6 +183,8 @@ ShellRoot {
 
             BigClock {
                 id: clock
+                opacity: stage.searchOpen ? 0.18 : 1
+                Behavior on opacity { NumberAnimation { duration: 200 } }
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
                 anchors.topMargin: parent.height * 0.05
@@ -173,6 +197,9 @@ ShellRoot {
 
             NowCard {
                 id: card
+                opacity: stage.searchOpen ? 0.18 : 1
+                Behavior on opacity { NumberAnimation { duration: 200 } }
+                onClicked: stage.openSearch()
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: clock.bottom
                 anchors.topMargin: parent.height * 0.02
@@ -201,7 +228,7 @@ ShellRoot {
                 }
                 visible: parent.width > 1050
                 backdrop: bg
-                bridge: bridge
+                bridge: bridgeSvc
                 accent: win.accent
                 textColor: win.textColor
                 subColor: win.subColor
@@ -221,6 +248,85 @@ ShellRoot {
                 onVideoToggled: settings.set("video.enabled", !(root.opts.video.enabled === true))
                 textColor: win.textColor
                 subColor: win.subColor
+            }
+
+            // Botón "Letras" bajo la tarjeta (como en la referencia)
+            Glass {
+                id: lyricsBtn
+                anchors.horizontalCenter: card.horizontalCenter
+                anchors.top: card.bottom
+                anchors.topMargin: 14
+                backdrop: bg
+                height: 34
+                width: lyricsRow.implicitWidth + 26
+                radius: height / 2
+                opacity: stage.searchOpen ? 0.18 : 1
+                tint: root.lyricsOpen ? Qt.alpha(win.accent, 0.22) : Qt.rgba(1, 1, 1, lyricsMa.containsMouse ? 0.12 : 0.06)
+                borderColor: root.lyricsOpen ? Qt.alpha(win.accent, 0.6) : Qt.rgba(1, 1, 1, 0.16)
+                Row {
+                    id: lyricsRow
+                    anchors.centerIn: parent
+                    spacing: 6
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "lyrics"
+                        font.family: "Material Symbols Rounded"
+                        font.pixelSize: 17
+                        color: root.lyricsOpen ? win.accent : win.subColor
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Letras"
+                        color: root.lyricsOpen ? win.accent : win.textColor
+                        font.family: "Rubik"
+                        font.pixelSize: 12
+                    }
+                }
+                MouseArea {
+                    id: lyricsMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: settings.set("lyrics.visible", !root.lyricsOpen)
+                }
+            }
+
+            // Panel de letras a la derecha, simétrico a la cola
+            LyricsPanel {
+                id: lyricsPanel
+                visible: root.lyricsOpen && parent.width > 1050
+                anchors.right: parent.right
+                anchors.rightMargin: parent.width * 0.045
+                anchors.verticalCenter: parent.verticalCenter
+                height: parent.height * 0.52
+                width: Math.min(360, parent.width * 0.25)
+                player: mediaSvc.active
+                lyrics: lyricsSvc
+                backdrop: bg
+                accent: win.accent
+                textColor: win.textColor
+                subColor: win.subColor
+                // inclinado hacia el otro lado: el borde derecho más cerca
+                transform: Rotation {
+                    origin.x: lyricsPanel.width
+                    origin.y: lyricsPanel.height / 2
+                    axis { x: 0; y: 1; z: 0 }
+                    angle: -16
+                }
+            }
+
+            // Buscador: solo existe mientras está abierto
+            Loader {
+                anchors.fill: parent
+                active: stage.searchOpen
+                sourceComponent: SearchOverlay {
+                    bridge: bridgeSvc
+                    backdrop: bg
+                    accent: win.accent
+                    textColor: win.textColor
+                    subColor: win.subColor
+                    onClosed: stage.closeSearch()
+                }
             }
 
             // Sin reproductor

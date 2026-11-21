@@ -12,6 +12,7 @@
 // arriba no cambian: así la fila bajo el cursor no se mueve y no "tiembla").
 // Arriba y abajo la lista se desvanece.
 import QtQuick
+import Quickshell.Widgets
 import QtQuick.Effects
 
 Item {
@@ -67,7 +68,7 @@ Item {
             color: row.highlighted ? Qt.alpha(row.pal.accent, 0.18)
                  : rowMa.containsMouse ? Qt.alpha(row.pal.text, 0.08) : "transparent"
         }
-        Rectangle {
+        ClippingRectangle {   // recorta de verdad por las esquinas (clip: true no)
             id: thumb
             x: 8
             anchors.verticalCenter: parent.verticalCenter
@@ -75,7 +76,7 @@ Item {
             height: width
             radius: row.roundImage ? width / 2 : 7
             color: Qt.alpha(row.pal.text, 0.08)
-            clip: true
+            
             Image {
                 anchors.fill: parent
                 source: row.image
