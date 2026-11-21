@@ -145,6 +145,14 @@ Item {
 
     DW.Theme { id: previewTheme }
 
+    // DaniOS Music (~/.config/quickshell/danios-music): mismo patrón de config
+    JsonSettings {
+        id: music
+        defaultsPath: Quickshell.env("HOME") + "/.config/quickshell/danios-music/defaults.json"
+        configPath: Quickshell.env("HOME") + "/.config/quickshell/danios-music/config.json"
+    }
+    readonly property var mu: music.cfg
+
     function resetPlayer() {
         const next = JSON.parse(JSON.stringify(user))
         delete next.player
@@ -442,6 +450,7 @@ Item {
             spacing: 8
             Chip { pal: tab.pal; label: "🕒  Reloj"; active: tab.section === "clock"; onActivated: tab.section = "clock" }
             Chip { pal: tab.pal; label: "♫  Reproductor"; active: tab.section === "player"; onActivated: tab.section = "player" }
+            Chip { pal: tab.pal; label: "▶  DaniOS Music"; active: tab.section === "music"; onActivated: tab.section = "music" }
         }
 
         ColumnLayout {
@@ -1058,6 +1067,98 @@ Item {
                 text: "Acento en Auto = color de la portada de cada canción. Las barras van en los bordes de la pantalla (reemplazan al visualizador de Caelestia) o alrededor del reproductor; dentro de la tarjeta no hay barras. cava solo corre mientras suena música y se ve (0 % en pausa o con ventanas)."
                 font.pixelSize: 11
                 color: tab.cTextV
+            }
+        }
+
+        // ══ DaniOS Music ════════════════════════════════════════════════════
+        ColumnLayout {
+            visible: tab.section === "music"
+            Layout.fillWidth: true
+            spacing: 16
+
+            RowLayout {
+                Layout.fillWidth: true
+                SectionTitle { pal: tab.pal; text: "DANIOS MUSIC" }
+                Item { Layout.fillWidth: true }
+                Chip { pal: tab.pal; label: "↺ Restablecer"; onActivated: music.reset() }
+            }
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "Reproductor a pantalla completa (Super + M). Los cambios se aplican al instante si está abierto."
+                font.pixelSize: 11
+                color: tab.cTextV
+            }
+
+            SectionTitle { pal: tab.pal; text: "VIDEOCLIP" }
+            Flow {
+                Layout.fillWidth: true
+                spacing: 16
+                Toggle { pal: tab.pal; label: "Videoclip de fondo"; checked: (tab.mu.video || {}).enabled !== false; onToggled: v => music.set("video.enabled", v) }
+                Toggle { pal: tab.pal; label: "Solo videoclips reales (no letras ni portadas fijas)"; checked: (tab.mu.video || {}).onlyMusicVideos !== false; onToggled: v => music.set("video.onlyMusicVideos", v) }
+                Toggle { pal: tab.pal; label: "Recortar franjas negras"; checked: (tab.mu.video || {}).cropBars !== false; onToggled: v => music.set("video.cropBars", v) }
+            }
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 2
+                columnSpacing: 24
+                rowSpacing: 12
+                RowLayout {
+                    spacing: 8
+                    Text { text: "Calidad"; font.pixelSize: 12; color: tab.cText; Layout.preferredWidth: 70 }
+                    Chip { pal: tab.pal; label: "720p (menos red)"; active: ((tab.mu.video || {}).maxHeight || 1080) === 720; onActivated: music.set("video.maxHeight", 720) }
+                    Chip { pal: tab.pal; label: "1080p"; active: ((tab.mu.video || {}).maxHeight || 1080) === 1080; onActivated: music.set("video.maxHeight", 1080) }
+                }
+                Slider {
+                    Layout.fillWidth: true
+                    pal: tab.pal; label: "Oscurecer el video"
+                    value: (tab.mu.video || {}).dim ?? 0.35
+                    from: 0; to: 0.7; step: 0.05; decimals: 2
+                    onCommitted: v => music.set("video.dim", Math.round(v * 100) / 100)
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                SectionTitle { pal: tab.pal; text: "BORDES DE NEÓN" }
+                Item { Layout.fillWidth: true }
+                Toggle { pal: tab.pal; label: "Activar"; checked: (tab.mu.edges || {}).enabled !== false; onToggled: v => music.set("edges.enabled", v) }
+            }
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 2
+                columnSpacing: 24
+                rowSpacing: 12
+                enabled: (tab.mu.edges || {}).enabled !== false
+                opacity: enabled ? 1 : 0.4
+                Slider {
+                    Layout.fillWidth: true
+                    pal: tab.pal; label: "Intensidad"
+                    value: (tab.mu.edges || {}).intensity ?? 1
+                    from: 0.3; to: 1.6; step: 0.05; decimals: 2
+                    onCommitted: v => music.set("edges.intensity", Math.round(v * 100) / 100)
+                }
+                Slider {
+                    Layout.fillWidth: true
+                    pal: tab.pal; label: "Alcance hacia dentro"
+                    value: (tab.mu.edges || {}).reach || 0.11
+                    from: 0.04; to: 0.25; step: 0.01; decimals: 2
+                    onCommitted: v => music.set("edges.reach", Math.round(v * 100) / 100)
+                }
+                RowLayout {
+                    spacing: 8
+                    Text { text: "Fluidez"; font.pixelSize: 12; color: tab.cText; Layout.preferredWidth: 70 }
+                    Chip { pal: tab.pal; label: "30 fps (ahorro)"; active: ((tab.mu.edges || {}).framerate || 30) === 30; onActivated: music.set("edges.framerate", 30) }
+                    Chip { pal: tab.pal; label: "60 fps"; active: (tab.mu.edges || {}).framerate === 60; onActivated: music.set("edges.framerate", 60) }
+                }
+            }
+
+            SectionTitle { pal: tab.pal; text: "HORA" }
+            RowLayout {
+                spacing: 8
+                Text { text: "Formato"; font.pixelSize: 12; color: tab.cText; Layout.preferredWidth: 70 }
+                Chip { pal: tab.pal; label: "12 h"; active: (tab.mu.clock || {}).format24 !== true; onActivated: music.set("clock.format24", false) }
+                Chip { pal: tab.pal; label: "24 h"; active: (tab.mu.clock || {}).format24 === true; onActivated: music.set("clock.format24", true) }
             }
         }
 

@@ -28,6 +28,7 @@ vanilla Caelestia's default keybinds.
 | `hypr-vars.lua` | Keybind variable remaps (which key does what) — see comments for what changed vs. upstream defaults |
 | `shell.json.example` | Caelestia Shell config — bar status icons, idle behaviour, launcher favourites, etc. Rename to `shell.json` after copying. |
 | `patches/` | Local patches for the system `caelestia-shell` package (see below) |
+| `cli.json.example` | Caelestia CLI "toggles": the music special workspace (Super+M) opens DaniOS Music instead of Spotify, and a new `spotify` special holds Spotify (Super+Alt+M). Copy to `~/.config/caelestia/cli.json` |
 
 `shell.json.example` intentionally does **not** set `paths.sessionGif` /
 `paths.mediaGif` — those point to personal GIF files that aren't shipped

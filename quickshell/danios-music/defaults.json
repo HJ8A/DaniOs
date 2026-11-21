@@ -1,0 +1,21 @@
+{
+    "preferred": "Spotify",
+    "video": {
+        "enabled": true,
+        "maxHeight": 1080,
+        "dim": 0.35,
+        "onlyMusicVideos": true,
+        "cropBars": true
+    },
+    "clock": {
+        "format24": false,
+        "font": "Open Sans Condensed"
+    },
+    "edges": {
+        "enabled": true,
+        "intensity": 1,
+        "reach": 0.11,
+        "bars": 48,
+        "framerate": 30
+    }
+}

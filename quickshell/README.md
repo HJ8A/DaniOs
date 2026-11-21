@@ -96,6 +96,37 @@ Needs `cava`, the *Material Symbols Rounded* and *Rubik* fonts, and the
 player's bottom margin ≥ 90 px: on an empty desktop Caelestia grabs the mouse
 in an ~87 px band along every screen edge (drag-to-open panels).
 
+## danios-music (`Super + M`)
+
+A full-screen music player in the spirit of a "desktop skin": the song's
+**real music video** (YouTube, video only, synced to Spotify) behind
+everything, **neon edges** that react to the music (cava, GPU shader), a big
+clock, a glass song card and player bar, and the **queue / playlists** on the
+left. It is a real window living in the music special workspace (tiled; Super+F
+for full screen); Spotify stays hidden in `special:spotify` as the audio engine.
+
+- **Video:** `yt-dlp` searches 6 candidates and scores them
+  (`services/VideoScore.js`: title, artist, "official video", duration; lyric
+  videos, audio-only uploads and "- Topic" channels lose). Video only, MP4 over
+  https (H.264/AV1, seekable in Qt; WebM is not) with HLS as automatic fallback
+  (YouTube sometimes answers 403 to the direct URL). Kept loaded and paused
+  while hidden. Sync: one seek on load, then ±10 % playback-rate nudges.
+  Letterbox/pillarbox bars are detected once per video (`ffmpeg cropdetect`
+  on key frames) and cropped. Cache: `~/.cache/danios-music/videos.json`.
+- **Queue and playlists** come from the Spicetify extension
+  `spicetify/danios-bridge.js` over a local WebSocket (127.0.0.1:47321):
+  `cp spicetify/danios-bridge.js ~/.config/spicetify/Extensions/ &&
+  spicetify config extensions danios-bridge.js && spicetify apply`.
+- **Settings:** `defaults.json` + `config.json` (only your changes), also
+  editable from `Super+I` → Widgets → DaniOS Music.
+- **Cost** (measured): visible and playing ≈ 6–8 % CPU (+ Hyprland ≈ 11 %),
+  hidden 0.2 %, paused 0 %; ~200–330 MB while open.
+
+Needs `yt-dlp`, `ffmpeg`, `cava`, `qt6-multimedia-ffmpeg`, `qt6-websockets`,
+the window/layer rules from `../caelestia/hypr-user.lua`, the toggles from
+`../caelestia/cli.json.example` and the Super+M / Super+Alt+M binds in
+`../phantomat/spatialoverview.lua`.
+
 ## keybinds-viewer (`Super + H`)
 
 A live cheatsheet of your keybinds, grouped by category, with a search box.

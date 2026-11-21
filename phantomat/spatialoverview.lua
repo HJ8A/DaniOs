@@ -312,7 +312,8 @@ rebind("SUPER + J", "Toggle split (infinito: nada)", by_mode("noop", { hl.dsp.la
 -- lienzo). En Caelestia, lo mismo que keybinds.lua (fn.toggle abre sus apps).
 for _, sp in ipairs({
   { "SUPER + S", "specialws", "Workspace especial" },
-  { "SUPER + M", "music", "Música" },
+  { "SUPER + M", "music", "Música (DaniOS Music)" },
+  { "SUPER + ALT + M", "spotify", "Spotify (motor de audio)" },
   { "SUPER + D", "communication", "Comunicación" },
   { "SUPER + R", "todo", "Todo" },
   { "CTRL + SHIFT + Escape", "sysmon", "Monitor del sistema" },

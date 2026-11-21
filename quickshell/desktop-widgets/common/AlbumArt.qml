@@ -14,6 +14,8 @@ ClippingRectangle {
     property string source: ""
     property color  placeholderColor: "#cccccc"
     property string iconFont: "Material Symbols Rounded"
+    // false en portadas secundarias (miniaturas): solo una calcula el color
+    property bool   sampleColor: true
 
     readonly property bool ready: image.status === Image.Ready
     property color vividColor: "transparent"
@@ -40,7 +42,7 @@ ClippingRectangle {
         cache: true
         opacity: root.ready ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 250 } }
-        onStatusChanged: if (status === Image.Ready) root.sample()
+        onStatusChanged: if (status === Image.Ready && root.sampleColor) root.sample()
     }
 
     readonly property string samplePath: Quickshell.env("XDG_RUNTIME_DIR") + "/desktop-widgets-art.png"

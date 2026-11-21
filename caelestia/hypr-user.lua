@@ -66,6 +66,28 @@ end)
 hl.layer_rule({ match = { namespace = "desktop-widgets-viz" }, blur = true, ignore_alpha = 0.15 })
 hl.layer_rule({ match = { namespace = "desktop-widgets-player" }, blur = true, ignore_alpha = 0.35 })
 
+-- DaniOS Music (quickshell/danios-music): full-screen-style player that lives
+-- in the music special workspace (Super+M, via the "toggles" in
+-- ~/.config/caelestia/cli.json — see cli.json.example), tiled like any other
+-- window (Super+F for full screen). Caelestia tags every org.quickshell window
+-- "float", so the tag is removed here.
+hl.window_rule({
+    match     = { title = "^DaniOS Music$" },
+    workspace = "special:music",
+    tag       = "-float",
+    tile      = true,
+})
+-- Spotify is only DaniOS Music's audio engine: hidden in its own special
+-- workspace (Super+Alt+M). These go after Caelestia's tag rules, so they win.
+hl.window_rule({
+    match     = { class = "^[Ss]potify$" },
+    workspace = "special:spotify",
+})
+hl.window_rule({
+    match     = { initial_title = "^Spotify( Free| Premium)?$" },
+    workspace = "special:spotify",
+})
+
 -- Window rules
 hl.window_rule({
     match  = { class = "thunar" },

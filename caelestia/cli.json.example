@@ -1,0 +1,46 @@
+{
+    "toggles": {
+        "music": {
+            "spotify": {
+                "enable": false
+            },
+            "daniosMusic": {
+                "enable": true,
+                "match": [
+                    {
+                        "title": "DaniOS Music"
+                    }
+                ],
+                "command": [
+                    "qs",
+                    "-c",
+                    "danios-music"
+                ],
+                "move": true
+            }
+        },
+        "spotify": {
+            "spotify": {
+                "enable": true,
+                "match": [
+                    {
+                        "class": "Spotify"
+                    },
+                    {
+                        "class": "spotify"
+                    },
+                    {
+                        "initial_title": "Spotify"
+                    },
+                    {
+                        "initial_title": "Spotify Free"
+                    }
+                ],
+                "command": [
+                    "spotify-launcher"
+                ],
+                "move": true
+            }
+        }
+    }
+}
