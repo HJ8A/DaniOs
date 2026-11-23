@@ -159,7 +159,11 @@ Item {
             console.warn("danios-music: video:", errorString)
             root.failed()
         }
-        onSeekableChanged: if (seekable && root.pendingSeek >= 0) root.seekTo(root.pendingSeek)
+        // Sin inyección implícita del parámetro (obsoleta; avisaba en el registro)
+        onSeekableChanged: () => {
+            if (mp.seekable && root.pendingSeek >= 0)
+                root.seekTo(root.pendingSeek)
+        }
         // Si tras un salto ya avanza, el salto terminó (algunos formatos no
         // pasan por "Buffered" de nuevo)
         onPositionChanged: if (root.seeking && playbackState === MediaPlayer.PlayingState) seekDone.restart()
