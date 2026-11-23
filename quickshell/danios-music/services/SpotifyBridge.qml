@@ -126,4 +126,16 @@ Item {
         }
         onErrorStringChanged: if (errorString) console.warn("danios-music: servidor del puente:", errorString)
     }
+
+    // Si el puerto está ocupado (otra instancia que aún no terminó de
+    // cerrarse), reintentar cada 5 s en vez de quedarse sin puente
+    Timer {
+        interval: 5000
+        repeat: true
+        running: !root.connected && server.errorString !== ""     // nunca con una extensión conectada
+        onTriggered: {
+            server.listen = false
+            server.listen = true
+        }
+    }
 }

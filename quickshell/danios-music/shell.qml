@@ -110,6 +110,10 @@ ShellRoot {
         id: win
 
         title: "DaniOS Music"
+        // Cerrar la ventana (p. ej. el atajo de cerrar ventana) cierra el programa:
+        // si no, el proceso seguía sin ventana con la conexión de Spotify ocupada
+        // y Super+M abría otro que ya no podía conectarse (visto: 3 a la vez).
+        onVisibleChanged: if (!visible) Qt.quit()
         color: "black"
         implicitWidth: 1280
         implicitHeight: 800

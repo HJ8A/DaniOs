@@ -123,6 +123,10 @@ for full screen); Spotify stays hidden in `special:spotify` as the audio engine.
   Source: Spotify's own lyrics through the extension, then **LRCLIB**
   (lrclib.net, public) — only fetched while the panel is open, cached in
   `~/.cache/danios-music/lyrics/`.
+- **One instance only:** launched with `qs -n` (no duplicates, see
+  `../caelestia/cli.json.example`), and closing the window quits the app. Before,
+  a closed window left the process running with the bridge port taken and
+  Super+M started another one that could not connect (no queue/playlists).
 - **Players:** only Spotify and the YouTube Music desktop app
   (`players.allowed`); browsers are ignored.
 - **Queue and playlists** come from the Spicetify extension
